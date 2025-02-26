@@ -56,6 +56,57 @@ func TestFieldSub(t *testing.T) {
 	}
 }
 
+func TestFieldReuce(t *testing.T) {
+	tests := []struct {
+		a uint64
+		b uint32
+	}{
+		{uint64(q) + 1, 1},
+		{uint64(q) + 321, 321},
+		{uint64(q * 2), 0},
+		{uint64(q*2) + 1, 1},
+		{uint64(q) * 100, 0},
+		{uint64(q)*100 + 1, 1},
+		{uint64(q)*10000 + 1, 1},
+		{uint64(q)*100000 + 1, 1},
+		{uint64(q)*100000 + 2, 2},
+	}
+
+	for _, tt := range tests {
+		a := common.FieldReduce(tt.a)
+		b := common.Uint32ToFieldElement(tt.b)
+		assert.Equal(t, tt.b, uint32(tt.a%q))
+		assert.Equal(t, tt.b, uint32(a%q))
+		assert.Equal(t, b, a)
+	}
+}
+
+func TestFieldMul(t *testing.T) {
+	tests := []struct {
+		a uint32
+		b uint32
+		c uint32
+	}{
+		{0, 1, 0},
+		{2, 5, 10},
+		{q >> 1, 2, q - 1},
+		{q - 1, 3, q - 3},
+		{q, 100, 0},
+		{33, 1000, 33000},
+		{q, 100000, 0},
+	}
+
+	for _, tt := range tests {
+		a := common.Uint32ToFieldElement(tt.a)
+		b := common.Uint32ToFieldElement(tt.b)
+		c := common.Uint32ToFieldElement(tt.c)
+		result := common.FieldMul(a, b)
+		assert.Equal(t, c, result)
+		result = common.FieldMul(b, a)
+		assert.Equal(t, c, result)
+	}
+}
+
 /*
 func TestCoeffReduceOnce(t *testing.T) {
 	for i := range 256 {
