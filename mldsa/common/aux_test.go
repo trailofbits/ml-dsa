@@ -2,7 +2,6 @@ package common_test
 
 import (
 	"encoding/hex"
-	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -414,15 +413,9 @@ func TestMakeUseHint(t *testing.T) {
 		r := common.Uint32ToFieldElement(tt.r)
 		z := common.Uint32ToFieldElement(tt.z)
 		gotH := common.MakeHint(tt.gamma2, z, r)
-		if tt.h != gotH {
-			fmt.Printf("%d %d | %d != %d\n", tt.z, tt.r, tt.h, gotH)
-		}
 		assert.Equal(t, tt.h, gotH)
 		used := common.UseHint(tt.gamma2, tt.h, r+z)
 		recovered := common.Uint32ToFieldElement(tt.recovered)
-		if used != recovered {
-			fmt.Printf("%d %d - recovered: %d != %d\n", tt.z, tt.r, used, recovered)
-		}
 		assert.Equal(t, recovered, used)
 	}
 }
@@ -467,5 +460,108 @@ func TestNTTAndInverse(t *testing.T) {
 	w2 = common.InverseNTT(w1h)
 	for i := range 256 {
 		assert.Equal(t, w1[i], w2[i])
+	}
+}
+
+func TestNTTOps(t *testing.T) {
+	w0 := common.NewRingElement()
+	w0[0] = common.RingCoeff(9)
+	w0h := common.NTT(w0)
+
+	w1 := common.NewRingElement()
+	w1[0] = common.RingCoeff(3)
+	w1h := common.NTT(w1)
+
+	// Multiplication
+	multiplied := common.NTTMul(w0h, w1h)
+	expected := common.FieldElement(27)
+	for i := range 256 {
+		assert.Equal(t, expected, multiplied[i])
+	}
+	inverted := common.InverseNTT(multiplied)
+	for i := range 256 {
+		if i == 0 {
+			assert.Equal(t, uint32(27), uint32(inverted[i]))
+		} else {
+			assert.Equal(t, uint32(0), uint32(inverted[i]))
+		}
+	}
+
+	// Addition
+	added := common.NTTAdd(w0h, w1h)
+	expected = common.FieldElement(12)
+	for i := range 256 {
+		assert.Equal(t, expected, added[i])
+	}
+}
+
+func TestNTTVectorOps(t *testing.T) {
+	l_values := []uint8{4, 5, 7}
+	for _, l := range l_values {
+		a := common.NewNttVector(l)
+		b := common.NewNttVector(l)
+		for i := range l {
+			for j := range 256 {
+				a[i][j] = common.FieldReduceOnce(uint32(i + 1))
+				b[i][j] = common.FieldReduceOnce(uint32((i + 1) << 1))
+			}
+		}
+
+		// AddVectorNTT
+		for i := range l {
+			added := common.AddVectorNTT(l, a, b)
+			expect := uint32(3 * (i + 1))
+			assert.Equal(t, expect, uint32(added[i][0]))
+		}
+
+		// ScalarVectorNTT
+		scalar := common.NewNttElement()
+		for j := range 256 {
+			scalar[j] = common.FieldReduceOnce(uint32(2))
+		}
+		product := common.ScalarVectorNTT(l, scalar, a)
+		for i := range l {
+			for j := range 256 {
+				assert.Equal(t, b[i][j], product[i][j])
+			}
+		}
+	}
+}
+
+func TestMatrixVectorNTT(t *testing.T) {
+	params := []struct {
+		k      uint8
+		l      uint8
+		expect []uint32
+	}{
+		{4, 4, []uint32{60, 80, 100, 120}},
+		{6, 5, []uint32{110, 140, 170, 200, 230, 260}},
+		{8, 7, []uint32{280, 336, 392, 448, 504, 560, 616, 672}},
+	}
+	for _, param := range params {
+		// Matrix A
+		A := common.NewNttMatrix(param.k, param.l)
+		for i := range param.k {
+			for j := range param.l {
+				for x := range 256 {
+					A[i][j][x] = common.FieldReduceOnce(uint32(i + j + 1))
+				}
+			}
+		}
+
+		// Vector b
+		b := common.NewNttVector(param.l)
+		for i := range param.l {
+			for j := range 256 {
+				b[i][j] = common.FieldReduceOnce(uint32((i + 1) << 1))
+			}
+		}
+
+		// A * b
+		product := common.MatrixVectorNTT(param.k, param.l, A, b)
+
+		for i := range param.k {
+			assert.Equal(t, param.expect[i], uint32(product[i][0]))
+		}
 	}
 }
