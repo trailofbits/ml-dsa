@@ -1,17 +1,5 @@
 package common
 
-// The coefficients for the polynomial coefficients are: [0, 2^((bitlen(q-1)-d) - 1]
-// Since q and d are constant for all parameter sets, this results in:
-// [0, 2^10 - 1] or [0, 1023] for ring coefficients. This fits in a int16.
-//
-// We use a signed integer here because some calculations result in negative numbers
-// for intermediary values.
-
-// Integers in the range [0, 2^10 - 1]
-type RingCoeff int16
-type RingElement [n]RingCoeff
-type RingVector []RingElement
-
 // Field elements are in the range [0, q-1]. This fits in a uint32.
 type FieldElement uint32
 
@@ -24,6 +12,11 @@ type NttVector []NttElement
 // [l]NttVector
 type NttMatrix []NttVector
 
+// We can simplify the code a lot and use uint32 for both components
+type RingCoeff uint32
+type RingElement [n]RingCoeff
+type RingVector []RingElement
+
 func Uint32ToFieldElement(x uint32) FieldElement {
 	return FieldElement(x)
 }
@@ -31,7 +24,7 @@ func Uint32ToFieldElement(x uint32) FieldElement {
 func NewRingElement() RingElement {
 	var x RingElement
 	for i := range n {
-		x[i] = RingCoeff(int16(0))
+		x[i] = RingCoeff(0)
 	}
 	return x
 }

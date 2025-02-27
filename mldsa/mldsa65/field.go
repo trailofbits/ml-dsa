@@ -52,15 +52,15 @@ func expandMask(rho []byte, mu uint64) common.RingVector {
 	return common.ExpandMask(l, γ1, rho, mu)
 }
 
-func decompose(r int32) (int32, int32) {
+func decompose(r uint32) (uint32, uint32) {
 	return common.Decompose(γ2, r)
 }
 
-func highBits(r int32) int32 {
+func highBits(r uint32) uint32 {
 	return common.HighBits(γ2, r)
 }
 
-func lowBits(r int32) int32 {
+func lowBits(r uint32) uint32 {
 	return common.LowBits(γ2, r)
 }
 

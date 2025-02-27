@@ -23,7 +23,7 @@ func Int16ToBits(x int16, a int) []byte {
 	}
 	return y
 }
-func Int32ToBits(x int32, a int) []byte {
+func Uint32ToBits(x uint32, a int) []byte {
 	var xprime = x
 	var y []byte = make([]byte, a)
 	for i := range a {
@@ -101,22 +101,21 @@ func CoeffFromThreeBytes(b0, b1, b2 byte) (FieldElement, error) {
 // Output: integer between -eta and eta or an error
 func CoeffFromHalfByte(eta int, b byte) (RingCoeff, error) {
 	if eta == 2 && b < 15 {
-		return RingCoeff(2 - int16(b%5)), nil
+		return CoeffReduceOnce(q + 2 - uint32(b%5)), nil
 	}
 	if eta == 4 && b < 9 {
-		return RingCoeff(4 - int16(b)), nil
+		return CoeffReduceOnce(q + 4 - uint32(b)), nil
 	}
 	return RingCoeff(0), errors.New("reject this sample")
 }
 
 // Algorithm 16
-// As of 2025-02-26, I suspect this has bugs
 func SimpleBitPack(w RingElement, b uint32) []byte {
-	var len int = bits.Len32(b)
+	var bitlen int = bits.Len32(b)
 	var z []byte
 	for i := range 256 {
-		suffix := Int32ToBits(int32(w[i]), len)
-		for j := range len {
+		suffix := Uint32ToBits(uint32(w[i]), bitlen)
+		for j := range bitlen {
 			z = append(z, suffix[j])
 		}
 	}
@@ -124,15 +123,17 @@ func SimpleBitPack(w RingElement, b uint32) []byte {
 }
 
 // Algorithm 17
-// As of 2025-02-26, I suspect this has bugs
-func BitPack(w RingElement, a, b int32) []byte {
+func BitPack(w RingElement, a, b uint32) []byte {
 	var z []byte
-	bitlen := bits.Len16(uint16(a + b))
+	bitlen := bits.Len32(uint32(a + b))
+	// print("\n")
 	for i := range 256 {
-		diff := b - int32(w[i])
-		bits := Int32ToBits(diff, bitlen)
-		z = append(z, bits...)
+		diff := b - uint32(w[i])
+		// fmt.Printf("diff b - w_i (%d - %d) == %d\n", b, w[i], diff)
+		bits := Uint32ToBits(diff, bitlen)
+		z = append(z, bits[:]...)
 	}
+	// print(hex.EncodeToString(z))
 
 	return BitsToBytes(z)
 }
@@ -146,33 +147,32 @@ func SimpleBitUnpack(v []byte, b int16) (w RingElement) {
 		start := i * c
 		end := start + c
 		bits := z[start:end]
-		as_int := int16(BitsToInteger(bits, c))
-		w[i] = CoeffReduceOnce(as_int)
+		w[i] = CoeffReduceOnce(BitsToInteger(bits, c))
 	}
 	return w
 }
 
 // Algorithm 19
 // As of 2025-02-26, I suspect this has bugs
-func BitUnpack(v []byte, a, b int16) (w RingElement) {
+func BitUnpack(v []byte, a, b uint32) (w RingElement) {
 	c := bits.Len16(uint16(a + b))
 	z := BytesToBits(v)
 	for i := range 256 {
 		start := i * c
 		end := start + c
 		bits := BitsToInteger(z[start:end], c)
-		w[i] = CoeffReduceOnce(b - int16(bits))
+		w[i] = CoeffReduceOnce(b - bits)
 	}
 	return w
 }
-func BitUnpack32(v []byte, a, b int32) (w RingElement) {
+func BitUnpack32(v []byte, a, b uint32) (w RingElement) {
 	c := bits.Len16(uint16(a + b))
 	z := BytesToBits(v)
 	for i := range 256 {
 		start := i * c
 		end := start + c
-		bits := int32(BitsToInteger(z[start:end], c))
-		w[i] = CoeffReduceOnce(int16(b - bits))
+		bits := BitsToInteger(z[start:end], c)
+		w[i] = CoeffReduceOnce(b - bits)
 	}
 	return w
 }
@@ -256,20 +256,30 @@ func PKDecode(k uint8, pk []byte) ([]byte, RingVector) {
 
 // Algorithm 24
 func SKEncode(k, l, eta uint8, rho, K, tr []byte, s1, s2, t0 RingVector) []byte {
-	sk := append(rho, K...)
+	sk := rho[:]
+	sk = append(sk, K...)
 	sk = append(sk, tr...)
 	for i := range l {
-		packed := BitPack(s1[i], int32(eta), int32(eta))
-		sk = append(sk, packed...)
+		packed := BitPack(s1[i], uint32(eta), uint32(eta))
+		sk = append(sk, packed[:]...)
 	}
 	for i := range k {
-		packed := BitPack(s2[i], int32(eta), int32(eta))
-		sk = append(sk, packed...)
+		packed := BitPack(s2[i], uint32(eta), uint32(eta))
+		sk = append(sk, packed[:]...)
 	}
+	// print("\n")
 	for i := range k {
-		packed := BitPack(t0[i], int32((1<<12)-1), int32(1<<12))
-		sk = append(sk, packed...)
+		packed := BitPack(t0[i], uint32((1<<12)-1), uint32(1<<12))
+		/*
+			print("\n")
+			for x := range 256 {
+				fmt.Printf("%x, ", t0[i][x])
+			}
+			print("\npacked:", hex.EncodeToString(packed), "\n")
+		*/
+		sk = append(sk, packed[:]...)
 	}
+	// print("\n")
 	return sk
 }
 
@@ -286,13 +296,13 @@ func SKDecode(k, l, eta uint8, sk []byte) ([]byte, []byte, []byte, RingVector, R
 	s2 := RingVector(make([]RingElement, k))
 	t0 := RingVector(make([]RingElement, k))
 	for i := range l {
-		s1[i] = BitUnpack(y[i:i], int16(eta), int16(eta))
+		s1[i] = BitUnpack(y[i:i], uint32(eta), uint32(eta))
 	}
 	for i := range k {
-		s2[i] = BitUnpack(z[i:i], int16(eta), int16(eta))
+		s2[i] = BitUnpack(z[i:i], uint32(eta), uint32(eta))
 	}
 	for i := range k {
-		t0[i] = BitUnpack(w[i:i], int16((1<<12)-1), int16(1<<12))
+		t0[i] = BitUnpack(w[i:i], uint32((1<<12)-1), uint32(1<<12))
 	}
 	return rho, K, tr, s1, s2, t0
 }
@@ -301,7 +311,7 @@ func SKDecode(k, l, eta uint8, sk []byte) ([]byte, []byte, []byte, RingVector, R
 func SigEncode(k, l, omega uint8, gamma1 uint32, c []byte, z, h RingVector) []byte {
 	sigma := c[:]
 	for i := range l {
-		packed := BitPack(z[i], int32(gamma1-1), int32(gamma1))
+		packed := BitPack(z[i], gamma1-1, gamma1)
 		sigma = append(sigma, packed...)
 	}
 	packed := HintBitPack(k, omega, h)
@@ -324,7 +334,7 @@ func SigDecode(k, l, omega uint8, lambda uint16, gamma1 uint32, sig []byte) ([]b
 	y := sig[0:length]
 
 	for i := range l {
-		z[i] = BitUnpack32(x[i:i], int32(gamma1-1), int32(gamma1))
+		z[i] = BitUnpack32(x[i:i], uint32(gamma1-1), uint32(gamma1))
 	}
 	h, err := HintBitUnpack(k, omega, y)
 	if err != nil {
@@ -474,34 +484,34 @@ func ExpandMask(l uint8, gamma1 uint32, rho []byte, mu uint64) RingVector {
 		as16 := packUint64(uint64(r) + mu)
 		packed := append(rho, as16...)
 		v := H(packed, c<<5)
-		y[r] = BitUnpack32(v, int32(gamma1-1), int32(gamma1))
+		y[r] = BitUnpack32(v, uint32(gamma1-1), uint32(gamma1))
 	}
 	return y
 }
 
 // Algorithm 35
-func Power2Round(r uint32) (int16, int16) {
-	shift := int32(1 << (d - 1))
-	a1 := (int32(r) + shift) >> d
-	a0 := (int32(r) - (a1 << d))
-	return int16(a1), int16(a0)
+func Power2Round(r uint32) (uint32, uint32) {
+	shift := uint32(1 << (d - 1))
+	a1 := (r + shift) >> d
+	a0 := (r - (a1 << d))
+	return a1, a0
 }
 
 // Algorithm 36
-func Decompose(gamma2 uint32, r int32) (int32, int32) {
+func Decompose(gamma2 uint32, r uint32) (uint32, uint32) {
 	return DecomposeVarTime(gamma2, r)
 }
-func DecomposeVarTime(gamma2 uint32, r int32) (int32, int32) {
+func DecomposeVarTime(gamma2 uint32, r uint32) (uint32, uint32) {
 	m := gamma2 << 1
 	// rpos <- r mod q
 	rpos := uint32(r % q)
 	// r0 <- r+ mod 2*gamma2
 	r0 := rpos % m
 	if rpos-r0 == q-1 {
-		return int32(0), int32(r0 - 1)
+		return uint32(0), uint32(r0 - 1)
 	} else {
 		r1 := (rpos - r0) / m
-		return int32(r1), int32(r0)
+		return uint32(r1), uint32(r0)
 	}
 }
 
@@ -581,21 +591,21 @@ func DecomposeCT(gamma2 uint32, r int32) (int32, int32) {
 */
 
 // Algorithm 37
-func HighBits(gamma2 uint32, r int32) int32 {
+func HighBits(gamma2 uint32, r uint32) uint32 {
 	r1, _ := Decompose(gamma2, r)
 	return r1
 }
 
 // Algorithm 38
-func LowBits(gamma2 uint32, r int32) int32 {
+func LowBits(gamma2 uint32, r uint32) uint32 {
 	_, r0 := Decompose(gamma2, r)
 	return r0
 }
 
 // Algorithm 39
 func MakeHint(gamma2 uint32, z, r FieldElement) uint8 {
-	r1 := HighBits(gamma2, int32(r))
-	v1 := HighBits(gamma2, int32(r+z))
+	r1 := HighBits(gamma2, uint32(r))
+	v1 := HighBits(gamma2, uint32(r+z))
 	// return (r1 ^ v1) != 0
 	// r1 == v1 -> return 0
 	// r1 != v1 -> return 1
@@ -606,7 +616,7 @@ func MakeHint(gamma2 uint32, z, r FieldElement) uint8 {
 func UseHint(gamma2 uint32, h uint8, r FieldElement) FieldElement {
 	// This is a constant value. We can make this a look-up table if we want to avoid the division.
 	m := (q - 1) / (gamma2 << 1)
-	r1, r0 := Decompose(gamma2, int32(r))
+	r1, r0 := Decompose(gamma2, uint32(r))
 
 	// We rewrote some conditional logic here to be constant-time
 	// The variable time algorithm looks like this:
@@ -637,14 +647,14 @@ func UseHint(gamma2 uint32, h uint8, r FieldElement) FieldElement {
 	// -h becomes -1 or 0, which is then used as a mask for bitwise AND
 	// (1 - (r0sign << 1)) becomes 1 if r0sign == 0. It becomes -1 if r0sign == 1.
 	// This works because 1 - 0 == 1, but 1 - 2 == -1, and (r0sign << 1) is either 0 or 2.
-	adjust := -int32(h) & int32(1-(r0sign<<1))
+	adjust := -uint32(h) & uint32(1-(r0sign<<1))
 
 	// Now that we have an adjustment value in the range (-1, 0, +1), add it to r1.
 	unreduced := r1 + adjust
 
 	// The final step is to reduce the result mod m:
 	x := uint32(unreduced) - m
-	x += (x >> 31) * m
+	x += -(x >> 31) & m
 
 	// We return the result as a fieldElement:
 	return FieldElement(x)
@@ -655,21 +665,32 @@ var zetas = [n]FieldElement{0, 4808194, 3765607, 3761513, 5178923, 5496691, 5234
 
 // Algorithm 41
 func NTT(w RingElement) (wh NttElement) {
+	// what[j] <- wj
 	for j := range 256 {
-		wh[j] = FieldElement(w[j])
+		wh[j] = FieldElement(uint32(w[j]))
 	}
+	// m <- 0, len <- 128
 	m := 0
 	for len := 128; len >= 1; len >>= 1 {
-		for start := 0; start < 256; start += len * 2 {
+		// start <- 0, while start < 256 do
+		for start := 0; start < 256; start += len << 1 {
+			// m <- m + 1
 			m++
+			// z <- zetas[m]
 			z := zetas[m]
-			for j := start; j < start+len-1; j++ {
+			// for j from start to start + len - 1 do
+			for j := start; j < start+len; j++ {
+				// t <- (z * what[j + len]) mod q
 				t := FieldMul(z, wh[j+len])
+				// what[j + len] <- (what[j] - t) mod q
 				wh[j+len] = FieldSub(wh[j], t)
+				// what[j] <- (what[j] + t) mod q
 				wh[j] = FieldAdd(wh[j], t)
 			}
 		}
+		// start <- start + 2 * len in the for loop above
 	}
+	// len <- floor(len / 2) in the for loop above
 	return wh
 }
 
@@ -682,10 +703,10 @@ func InverseNTT(wh NttElement) RingElement {
 	}
 	m := 256
 	for len := 1; len < 256; len <<= 1 {
-		for start := 0; start < 256; start += len * 2 {
+		for start := 0; start < 256; start += len << 1 {
 			m--
-			z := q - zetas[m]
-			for j := start; j < start+len-1; j++ {
+			z := q - zetas[m] // z <- -zetas[m]
+			for j := start; j < start+len; j++ {
 				t := wt[j]
 				wt[j] = FieldAdd(t, wt[j+len])
 				wt[j+len] = FieldSub(t, wt[j+len])
@@ -695,7 +716,7 @@ func InverseNTT(wh NttElement) RingElement {
 	}
 	f := FieldElement(8347681) // 256⁻¹ mod q
 	for j := range 256 {
-		w[j] = RingCoeff(FieldMul(wt[j], f) & 0x3ff)
+		w[j] = RingCoeff(FieldMul(wt[j], f))
 	}
 	return RingElement(w)
 }

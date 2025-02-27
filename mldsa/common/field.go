@@ -33,7 +33,7 @@ func FieldSub(a, b FieldElement) FieldElement {
 
 // Use barrett reduction to calculate a mod q without division.
 func FieldReduce(a uint64) FieldElement {
-	quotient := uint64((a * barrettMultiplier) >> barrettShift)
+	quotient := (a >> 23) * barrettMultiplier >> (barrettShift - 23)
 	// Compute the remainder
 	remainder := uint32(a - quotient*uint64(q))
 	// Ensure result is fully reduced

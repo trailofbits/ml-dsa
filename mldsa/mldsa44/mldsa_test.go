@@ -2,6 +2,7 @@ package mldsa44_test
 
 import (
 	"encoding/hex"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -22,9 +23,28 @@ func TestKeyGen(t *testing.T) {
 	sk, pk := mldsa44.KeyGenInternal(seed_copy)
 	actual_sk := strings.ToUpper(hex.EncodeToString(sk.ExpandedBytesForTesting()))
 	// First, assert seed-derived values
-	// assert.Equal(t, expect_sk[0:128], actual_sk[0:128])
-	// Next slice is the encoding of s1
-	// assert.Equal(t, expect_sk[128:256], actual_sk[128:256])\
+	assert.Equal(t, expect_sk[0:128], actual_sk[0:128])
+	expect_sk_pieces := expect_sk[128:]
+	actual_sk_pieces := actual_sk[128:]
+	loops := 0
+	fail := false
+	for len(expect_sk_pieces) > 0 {
+		if expect_sk_pieces[0:192] != actual_sk_pieces[0:192] {
+			fmt.Printf("- %s\n", expect_sk_pieces[0:192])
+			fmt.Printf("+ %s\n", actual_sk_pieces[0:192])
+			fmt.Printf("Loop iteration: %d\n", loops)
+			// assert.Fail(t, "mismatch")
+			fail = true
+		}
+		// assert.Equal(t, expect_sk_pieces[0:64], actual_sk_pieces[0:64])
+		expect_sk_pieces = expect_sk_pieces[192:]
+		actual_sk_pieces = actual_sk_pieces[192:]
+		loops++
+	}
+	if fail {
+		return
+	}
+
 	assert.Equal(t, expect_sk, actual_sk)
 	assert.Equal(t, expect_pk, hex.EncodeToString(pk.Bytes()))
 }

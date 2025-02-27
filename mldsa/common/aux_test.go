@@ -16,7 +16,7 @@ func TestInt16ToBits(t *testing.T) {
 
 func TestInt32ToBits(t *testing.T) {
 	expected := []byte{0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 1, 0}
-	assert.Equal(t, expected, common.Int32ToBits(int32(0b01100000_10100000), 16))
+	assert.Equal(t, expected, common.Uint32ToBits(uint32(0b01100000_10100000), 16))
 }
 
 func TestBitsToInteger(t *testing.T) {
@@ -63,14 +63,14 @@ func TestCoeffFromHalfByte(t *testing.T) {
 	for i := range 15 {
 		c, err := common.CoeffFromHalfByte(2, byte(i))
 		assert.Empty(t, err)
-		x := int16(2 - (i % 5))
-		assert.Equal(t, common.Int16ToRingCoeff(x), c)
+		x := uint32(q + 2 - (i % 5))
+		assert.Equal(t, common.CoeffReduceOnce(x), c)
 	}
 	for i := range 9 {
 		c, err := common.CoeffFromHalfByte(4, byte(i))
 		assert.Empty(t, err)
-		x := int16(4 - i)
-		assert.Equal(t, common.Int16ToRingCoeff(x), c)
+		x := uint32(q + 4 - i)
+		assert.Equal(t, common.CoeffReduceOnce(x), c)
 	}
 }
 
@@ -78,7 +78,7 @@ func TestCoeffFromHalfByte(t *testing.T) {
 func TestSimpleBits(t *testing.T) {
 	var ringElement common.RingElement
 	for i := range 256 {
-		ringElement[i] = common.Int16ToRingCoeff(int16(1023 - i))
+		ringElement[i] = common.CoeffReduceOnce(uint32(1023 - i))
 	}
 	packed := common.SimpleBitPack(ringElement, 1023)
 	asHex := hex.EncodeToString(packed)
@@ -87,7 +87,7 @@ func TestSimpleBits(t *testing.T) {
 
 	unpacked := common.SimpleBitUnpack(packed, 1023)
 	for i := range 256 {
-		expect := common.Int16ToRingCoeff(int16(1023 - i))
+		expect := common.CoeffReduceOnce(uint32(1023 - i))
 		assert.Equal(t, expect, unpacked[i])
 	}
 }
@@ -96,7 +96,7 @@ func TestSimpleBits(t *testing.T) {
 func TestBits(t *testing.T) {
 	var ringElement common.RingElement
 	for i := range 256 {
-		ringElement[i] = common.Int16ToRingCoeff(int16(i))
+		ringElement[i] = common.CoeffReduceOnce(uint32(i))
 	}
 	packed := common.BitPack(ringElement, 0, 255)
 	asHex := hex.EncodeToString(packed)
@@ -105,9 +105,16 @@ func TestBits(t *testing.T) {
 
 	unpacked := common.BitUnpack(packed, 0, 255)
 	for i := range 256 {
-		expect := common.Int16ToRingCoeff(int16(i))
+		expect := common.CoeffReduceOnce(uint32(i))
 		assert.Equal(t, expect, unpacked[i])
 	}
+	/*
+		re := common.RingElement{-2, -1, 0, 2, -2, 2, 0, 2, -1, 0, 0, 1, -1, 2, 2, 1, -1, 2, 0, -1, -1, 1, -2, 0, -1, 2, 1, -1, 0, -1, 1, 2, -1, -2, 1, 2, -1, 0, 1, 1, 2, 0, 0, 1, 0, 2, 0, 1, 1, 1, 2, -2, 0, -2, 0, -2, 0, 2, 1, -1, -1, 0, -1, 0, 1, 0, 2, -2, 1, 1, -2, 1, 0, 0, 1, 2, -2, 2, -1, 2, -1, 2, -2, -2, 2, -2, 1, 1, -2, -2, 2, 1, -1, 2, 1, 0, -1, 2, 0, 2, 2, 1, 0, 2, 2, 1, -2, -2, -1, 2, 2, -2, 0, 0, 1, -2, -2, -2, 0, -1, 0, 0, -1, -2, -2, 0, -1, -2, 0, -2, -1, 0, 1, 2, 1, 1, -1, -1, 2, -2, -2, 0, -2, 0, 2, 1, 1, 1, 2, 0, -2, 1, 1, 2, -1, -1, 1, -1, 0, -1, -2, 2, 2, -2, 0, 0, 2, -2, 0, 2, -2, 2, 2, 2, 1, 1, 1, 0, 0, -2, 1, 1, 0, 1, 1, -1, -2, -2, 0, -2, -1, 1, -2, -2, -2, 1, -1, 1, 0, 0, 0, -1, 1, 0, 1, 1, -2, 1, 0, 1, 2, 0, 1, -1, 2, -1, 0, -1, 1, -1, -1, -1, 0, 1, 2, -1, 0, 0, 2, -1, 1, 1, 0, -2, 0, 0, -2, -1, -1, 1, 1, -1, 0, 0, 1, -1, 1, -2, 2, -2, 1, 2, 1, -1, 1, -2}
+		packed = common.BitPack(re, 2, 2)
+		// print(len(packed), "\n")
+		asHex = hex.EncodeToString(packed)
+		print(asHex, "\n")
+	*/
 }
 
 /*
@@ -232,13 +239,16 @@ func TestRejBoundedPoly(t *testing.T) {
 	etaMap := []uint8{2, 4}
 	for _, eta := range etaMap {
 		poly := common.RejBoundedPoly(int(eta), seed)
-		plus := int32(eta) + 1
-		minus := -plus
+		plus := uint32(eta + 1)
+		minus := uint32(common.CoeffReduceOnce(q - plus))
 
 		// Ensure all values are between -eta and +eta
 		for i := range 256 {
-			assert.Greater(t, int32(poly[i]), minus)
-			assert.Less(t, int32(poly[i]), plus)
+			value := uint32(common.CoeffReduceOnce(uint32(poly[i])))
+			// fmt.Printf("%d ", value)
+			assert.True(t, value < plus || value > minus)
+			// assert.Greater(t, int32(poly[i]), minus)
+			// assert.Less(t, int32(poly[i]), plus)
 		}
 	}
 }
@@ -279,20 +289,36 @@ func testExpandSParametrized(t *testing.T, k, l uint8, eta int) {
 		panic(err)
 	}
 	s1, s2 := common.ExpandS(k, l, eta, tr)
-	plus := eta + 1
-	minus := -1 * plus
+	plus := uint32(eta + 1)
+	minus := uint32(common.CoeffReduceOnce(q - plus))
+	// fmt.Printf("s1 = {\n")
 	for r := range l {
+		// fmt.Printf("\t{")
 		for i := range 256 {
-			assert.Greater(t, int(s1[r][i]), minus)
-			assert.Less(t, int(s1[r][i]), plus)
+			value := uint32(common.CoeffReduceOnce(uint32(s1[r][i])))
+			// fmt.Printf("%d ", value)
+			assert.True(t, value < plus || value > minus)
+			// fmt.Printf("%d", s1[r][i])
+			// if i < 255 {
+			// 	fmt.Printf(",")
+			// }
 		}
+		// fmt.Printf("\n\t},\n")
 	}
+	// fmt.Printf("}\ns2 = {\n")
 	for s := range k {
+		// fmt.Printf("\t{")
 		for i := range 256 {
-			assert.Greater(t, int(s2[s][i]), minus)
-			assert.Less(t, int(s2[s][i]), plus)
+			value := uint32(common.CoeffReduceOnce(uint32(s2[s][i])))
+			assert.True(t, value < plus || value > minus)
+			// fmt.Printf("%d ", value)
+			// if i < 255 {
+			// 	fmt.Printf(",")
+			// }
 		}
+		// fmt.Printf("\n\t},\n")
 	}
+	// fmt.Printf("}\n")
 }
 
 func TestExpandMask(t *testing.T) {
@@ -320,8 +346,8 @@ func testExpandMaskParametrized(t *testing.T, l uint8, gamma1 uint32, mu uint64)
 func TestPower2Round(t *testing.T) {
 	tests := []struct {
 		a      uint32
-		wantA1 int16
-		wantA0 int16
+		wantA1 uint32
+		wantA0 uint32
 	}{
 		{123456, 15, 576},
 		{8192, 1, 0},    // Exact multiple of 2^13
@@ -340,9 +366,9 @@ func TestDecompose(t *testing.T) {
 	tests := []struct {
 		name      string
 		gamma2    uint32
-		r         int32
-		expected1 int32
-		expected2 int32
+		r         uint32
+		expected1 uint32
+		expected2 uint32
 	}{
 		{"Zero Input (gamma2=95232)", 95232, 0, 0, 0},
 		{"Positive r (gamma2=95232)", 95232, 5, 0, 5},
@@ -398,5 +424,48 @@ func TestMakeUseHint(t *testing.T) {
 			fmt.Printf("%d %d - recovered: %d != %d\n", tt.z, tt.r, used, recovered)
 		}
 		assert.Equal(t, recovered, used)
+	}
+}
+
+func TestNTTAndInverse(t *testing.T) {
+	// Operations are inverses
+	w0 := common.NewRingElement()
+	w0[0] = common.RingCoeff(9)
+	w0h := common.NTT(w0)
+	expected := common.FieldElement(9)
+	for i := range 256 {
+		assert.Equal(t, expected, w0h[i])
+	}
+	w0r := common.InverseNTT(w0h)
+	for i := range 256 {
+		assert.Equal(t, w0[i], w0r[i])
+	}
+
+	// Let's populate a ring then NTT it
+	w1 := common.NewRingElement()
+	for i := range 256 {
+		w1[i] = common.RingCoeff(i)
+	}
+	w1h := common.NTT(w1)
+	expect_w1h := []uint32{8023823, 4949942, 5503697, 7227518, 4077164, 903461, 2287113, 3389395, 1447936, 3912035, 3833152, 5335025, 7966085, 8118989, 7144945, 7460296, 8200405, 5651255, 5840697, 2041, 8329041, 2296483, 7624292, 7760084, 6558166, 2463083, 592160, 7596205, 490458, 4570418, 535121, 5905710, 2269315, 25712, 65279, 6056088, 437727, 5437873, 45209, 3628670, 5932184, 4892020, 4400120, 3282855, 5579212, 2040171, 8129297, 3975887, 886499, 5275349, 1715375, 2422113, 503654, 2500352, 3475364, 2130347, 7671751, 7706886, 6190567, 1877207, 1880030, 7339689, 5192027, 7408649, 4046506, 6555025, 861568, 5241798, 3351905, 7967553, 8240568, 2908955, 1077579, 7068530, 1063576, 2082141, 1227026, 4901674, 6147942, 4516462, 7784774, 4909015, 2489952, 8055865, 1807242, 3141274, 4210121, 2460839, 6404829, 6055556, 699854, 8144470, 167925, 2815245, 5308330, 7801015, 7301606, 2832490, 6224608, 4233662, 3984450, 6969568, 7183502, 6133025, 3069985, 7499554, 5559452, 7309678, 5405335, 5069329, 3320196, 2451430, 3043243, 3070455, 3966814, 6244424, 2083871, 2186058, 7917105, 5731770, 8357109, 4801012, 3444419, 6442745, 3142318, 4483091, 4065258, 1986703, 8368027, 4615661, 144560, 4178015, 2729052, 7118387, 1224642, 2979664, 2679432, 2620296, 3256914, 7425771, 4495896, 6348741, 6906650, 4571569, 5432259, 4416612, 3304060, 5577029, 3173849, 6062776, 8209741, 1186292, 3076903, 7840971, 2874775, 2013616, 4888110, 5543365, 6149437, 7037817, 2703904, 148603, 1178408, 5493962, 2871386, 2394607, 4524768, 626150, 8137948, 2020685, 2930707, 6943539, 3297580, 3309315, 7957803, 3489579, 1101657, 2199934, 2667995, 311407, 4615923, 268380, 7867980, 1165026, 6246419, 7938242, 3436132, 5102358, 1264622, 6021013, 3303556, 104046, 252176, 6426141, 3998553, 918827, 4282041, 2746755, 1284601, 5651462, 6998811, 1817618, 528380, 2525913, 5078866, 8002802, 2110331, 2052914, 155305, 3718478, 5776192, 6905096, 5498888, 7254918, 6047002, 6361152, 915442, 87228, 1281704, 3647397, 8363923, 3451609, 6209053, 1776623, 1128875, 6914893, 4152979, 1018431, 6308070, 982921, 3563602, 1283529, 1618324, 1186221, 13008, 759546, 6421303, 5292714, 2462024, 7387771, 7276117, 1343415, 1301221, 977961, 3904031, 193986, 5172786, 1429550, 2425536, 68499, 3777265, 7056830, 6555455, 981963, 8074937, 3279003}
+	for i := range 256 {
+		assert.Equal(t, expect_w1h[i], uint32(w1h[i]))
+	}
+	w2 := common.InverseNTT(w1h)
+	for i := range 256 {
+		expect := uint32(w1[i])
+		actual := uint32(w2[i])
+		assert.Equal(t, expect, actual)
+	}
+
+	/// Descending values
+	w1 = common.NewRingElement()
+	for i := range 256 {
+		w1[i] = common.RingCoeff(q - 1 - i)
+	}
+	w1h = common.NTT(w1)
+	w2 = common.InverseNTT(w1h)
+	for i := range 256 {
+		assert.Equal(t, w1[i], w2[i])
 	}
 }

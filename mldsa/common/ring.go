@@ -1,41 +1,20 @@
 package common
 
-// Since ring coefficients are between [-1024, 1023], we can use bitwise operators
-// and avoid a more expensive Barrett reduction, while also avoiding side-channels
-func CoeffReduceOnce(a int16) RingCoeff {
-	// If the highest bit is set, this is a signed number
-	sign := int16(1 & (a >> 15))
-	// If sign == 1, mask = -1; else, mask = 0
-	mask := -sign
-	// Reduce mod 1024 (equivalent to an AND mask with 1023)
-	reduced := int16(a & 1023)
-	// Constant-time conditional swap
-	left := int16((-1024 | reduced) & mask)
-	right := int16(reduced & ^mask)
-	with_sign := left ^ right
-	return RingCoeff(with_sign)
-}
-
-// TODO - get rid of this garbage
-func CoeffReduceUint32(a uint32) RingCoeff {
-	return CoeffReduceOnce(int16(a & 0xffff))
-}
-func CoeffReduceInt32(a int32) RingCoeff {
-	return CoeffReduceOnce(int16(a & 0xffff))
-}
-func Int16ToRingCoeff(a int16) RingCoeff {
-	return RingCoeff(a)
+func CoeffReduceOnce(a uint32) RingCoeff {
+	x := uint32(a - q)
+	x += (x >> 31) * q
+	return RingCoeff(x)
 }
 
 // Adding coefficients, mod q.
 func CoeffAdd(a, b RingCoeff) RingCoeff {
-	x := int16(a + b)
+	x := uint32(a + b)
 	return CoeffReduceOnce(x)
 }
 
 // Subtracting coefficients, mod q.
 func CoeffSub(a, b RingCoeff) RingCoeff {
-	x := int16(a - b)
+	x := uint32(a - b + q)
 	return CoeffReduceOnce(x)
 }
 

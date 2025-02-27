@@ -94,6 +94,7 @@ func TestFieldMul(t *testing.T) {
 		{q, 100, 0},
 		{33, 1000, 33000},
 		{q, 100000, 0},
+		{q - 1, q - 1, 1},
 	}
 
 	for _, tt := range tests {
