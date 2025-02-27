@@ -67,6 +67,7 @@ func KeyGenInternal(seed [32]byte) (SigningKey, VerifyingKey) {
 	var K_copy [32]byte
 	var tr_copy [64]byte
 	var t1_copy [k]common.RingElement
+	var t0_copy [k]common.RingElement
 
 	hashed := common.H(append(seed[:], byte(k), byte(l)), 128)
 	rho, rhoprime, K := hashed[0:32], hashed[32:96], hashed[96:]
@@ -85,19 +86,19 @@ func KeyGenInternal(seed [32]byte) (SigningKey, VerifyingKey) {
 	// multiplied := nttMul(Ahat, common.NTT(s1))
 	// polynomial := inverseNTT(multiplied)
 	// t := ringAdd(polynomial, s2)
-	t1, _ := ringVecPower2Round(t)
+	t1, t0 := ringVecPower2Round(t)
 
 	pke := pkEncode(rho, t1)
 	tr := common.H(pke, 64)
 	copy(tr_copy[:], tr[:])
 	for i := range int(k) {
 		t1_copy[i] = common.NewRingElement()
-		for j := range int16(256) {
-			e := t1[i]
-			t1_copy[i][j] = e[j]
+		for j := range 256 {
+			t1_copy[i][j] = t1[i][j]
+			t0_copy[i][j] = t0[i][j]
 		}
 	}
-	sk := SigningKey{seed, rho_copy, K_copy, tr_copy, t1_copy}
+	sk := SigningKey{seed, rho_copy, K_copy, tr_copy, t0_copy}
 	vk := VerifyingKey{rho_copy, t1_copy}
 	return sk, vk
 }
