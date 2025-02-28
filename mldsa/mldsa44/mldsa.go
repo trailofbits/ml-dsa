@@ -70,9 +70,12 @@ func KeyGenInternal(seed [32]byte) (SigningKey, VerifyingKey) {
 	var t0_copy [k]common.RingElement
 
 	hashed := common.H(append(seed[:], byte(k), byte(l)), 128)
-	rho, rhoprime, K := hashed[0:32], hashed[32:96], hashed[96:]
-	copy(rho_copy[:], rho[:])
-	copy(K_copy[:], K[:])
+	rho := make([]byte, 32)
+	rhoprime := make([]byte, 64)
+	K := make([]byte, 32)
+	copy(rho, hashed[0:32])
+	copy(rhoprime, hashed[32:96])
+	copy(K, hashed[96:])
 
 	Ahat := expandA(rho)
 	s1, s2 := expandS(rhoprime)
@@ -98,6 +101,8 @@ func KeyGenInternal(seed [32]byte) (SigningKey, VerifyingKey) {
 			t0_copy[i][j] = t0[i][j]
 		}
 	}
+	copy(rho_copy[:], rho[:])
+	copy(K_copy[:], K[:])
 	sk := SigningKey{seed, rho_copy, K_copy, tr_copy, t0_copy}
 	vk := VerifyingKey{rho_copy, t1_copy}
 	return sk, vk
@@ -112,7 +117,10 @@ func (sk SigningKey) Bytes() []byte {
 // We do not recommend actually ever using this. Store the seed instead.
 func (sk SigningKey) ExpandedBytesForTesting() []byte {
 	hashed := common.H(append(sk.seed[:], byte(k), byte(l)), 128)
-	rho, rhoprime := hashed[0:32], hashed[32:96]
+	rho := make([]byte, 32)
+	rhoprime := make([]byte, 64)
+	copy(rho, hashed[0:32])
+	copy(rhoprime, hashed[32:96])
 	Ahat := expandA(rho)
 	s1, s2 := expandS(rhoprime)
 

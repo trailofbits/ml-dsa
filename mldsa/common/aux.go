@@ -14,15 +14,6 @@ import (
 //	a -- positive integer
 //
 // Returns a []byte with a distinct byte entry for each bit
-func Int16ToBits(x int16, a int) []byte {
-	var xprime = x
-	var y []byte = make([]byte, a)
-	for i := range a {
-		y[i] = byte(xprime & 1)
-		xprime = xprime >> 1
-	}
-	return y
-}
 func Uint32ToBits(x uint32, a int) []byte {
 	var xprime = x
 	var y []byte = make([]byte, a)
@@ -48,7 +39,18 @@ func BitsToInteger(y []byte, a int) uint32 {
 	return x
 }
 
-// We don't need Algorithm 11 because we have built-in methods.
+func IntegerToBytes(x uint32, a int) []byte {
+	xp := x
+	y := make([]byte, a)
+	for i := range a {
+		y[i] = byte(xp & 0xff)
+		xp >>= 8
+	}
+	return y
+}
+func IntegerToBits(x uint32, b int) []byte {
+	return BitsToBytes(IntegerToBytes(x, b))
+}
 
 // Algorithm 12
 // Here, y is a []byte with each value set to 0 or 1.
@@ -398,7 +400,8 @@ func RejBoundedPoly(eta int, seed []byte) RingElement {
 	var a RingElement
 	ctx := sha3.NewShake256()
 	ctx.Write(seed)
-	for j := range 256 {
+	j := 0
+	for j < 256 {
 		z := make([]byte, 1)
 		ctx.Read(z)
 		z0, err := CoeffFromHalfByte(eta, z[0]&15)
@@ -455,12 +458,12 @@ func ExpandS(k, l uint8, eta int, rho []byte) (RingVector, RingVector) {
 	for r := range l {
 		r_le := packUint16(uint16(r))
 		packed := append(rho, r_le...)
-		s1[r] = RejBoundedPoly(eta, packed)
+		s1[r] = RejBoundedPoly(eta, packed[:])
 	}
 	for r := range k {
 		r_le := packUint16(uint16(r) + uint16(l))
 		packed := append(rho, r_le...)
-		s2[r] = RejBoundedPoly(eta, packed)
+		s2[r] = RejBoundedPoly(eta, packed[:])
 	}
 	return s1, s2
 }
@@ -492,6 +495,8 @@ func Power2Round(r uint32) (uint32, uint32) {
 	shift := uint32(1 << (d - 1))
 	a1 := (r + shift) >> d
 	a0 := (r - (a1 << d))
+	// If we underflowed, let's mask out the relevant bits
+	a0 &= (1 << d) - 1
 	return a1, a0
 }
 
@@ -739,7 +744,7 @@ func InvNttVec(k uint8, w NttVector) RingVector {
 
 // Algorithm 43
 func BitRev8(m byte) byte {
-	b := Int16ToBits(int16(m), 8)
+	b := Uint32ToBits(uint32(m), 8)
 	b_rev := make([]byte, 8)
 	for i := range 8 {
 		b_rev[i] = b[7-i]
