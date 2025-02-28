@@ -115,9 +115,7 @@ func SimpleBitPack(w RingElement, b uint32) []byte {
 	var z []byte
 	for i := range 256 {
 		suffix := Uint32ToBits(uint32(w[i]), bitlen)
-		for j := range bitlen {
-			z = append(z, suffix[j])
-		}
+		z = append(z, suffix[0:bitlen]...)
 	}
 	return BitsToBytes(z)
 }
@@ -231,7 +229,7 @@ func HintBitUnpack(k, omega uint8, y []byte) (RingVector, error) {
 // Algorithm 22, parametrized by `k` from each ML-DSA parameter set
 func PKEncode(k uint8, rho []byte, t1 RingVector) []byte {
 	var pk []byte
-	copy(pk[:], rho[:])
+	pk = append(pk, rho...)
 	for i := range k {
 		// 2^(bitlen(q - 1) - d) - 1 = 1023
 		packed := SimpleBitPack(t1[i], 1023)

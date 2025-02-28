@@ -36,7 +36,7 @@ func RingSub(a, b RingElement) (s RingElement) {
 
 func RingPower2Round(k uint8, r RingElement) (RingElement, RingElement) {
 	var r1, r0 RingElement
-	for i := range k {
+	for i := range 256 {
 		round0, round1 := Power2Round(uint32(r[i]))
 		r1[i], r0[i] = CoeffReduceOnce(round0), CoeffReduceOnce(round1)
 	}

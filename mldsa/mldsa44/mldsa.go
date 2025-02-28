@@ -88,7 +88,7 @@ func KeyGenInternal(seed [32]byte) (SigningKey, VerifyingKey) {
 	// t := ringAdd(polynomial, s2)
 	t1, t0 := ringVecPower2Round(t)
 
-	pke := pkEncode(rho, t1)
+	pke := pkEncode(rho, t1[:])
 	tr := common.H(pke, 64)
 	copy(tr_copy[:], tr[:])
 	for i := range int(k) {
