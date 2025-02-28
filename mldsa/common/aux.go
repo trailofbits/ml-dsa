@@ -126,12 +126,18 @@ func SimpleBitPack(w RingElement, b uint32) []byte {
 func BitPack(w RingElement, a, b uint32) []byte {
 	var z []byte
 	bitlen := bits.Len32(uint32(a + b))
-	// print("\n")
 	for i := range 256 {
-		diff := b - uint32(w[i])
-		// fmt.Printf("diff b - w_i (%d - %d) == %d\n", b, w[i], diff)
+		var diff uint32
+		// TODO: Figure out why this behavior differs when a != b
+		if a == b {
+			wi := uint32(w[i])
+			diff = b - wi
+			diff += (diff >> 31) * q
+		} else {
+			diff = b - uint32(w[i])
+		}
 		bits := Uint32ToBits(diff, bitlen)
-		z = append(z, bits[:]...)
+		z = append(z, bits[0:bitlen]...)
 	}
 	// print(hex.EncodeToString(z))
 
@@ -268,8 +274,10 @@ func SKEncode(k, l, eta uint8, rho, K, tr []byte, s1, s2, t0 RingVector) []byte 
 		sk = append(sk, packed[:]...)
 	}
 	// print("\n")
+	max := uint32(1 << (d - 1))
+	min := max - 1
 	for i := range k {
-		packed := BitPack(t0[i], uint32((1<<12)-1), uint32(1<<12))
+		packed := BitPack(t0[i], min, max)
 		/*
 			print("\n")
 			for x := range 256 {

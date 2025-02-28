@@ -39,8 +39,10 @@ func TestKeyGen(t *testing.T) {
 	var seed_copy [32]byte
 	copy(seed_copy[:], seed[0:32])
 	sk, pk := mldsa44.KeyGenInternal(seed_copy)
+	// Does the public key match?
 	assert.Equal(t, expect_pk, strings.ToUpper(hex.EncodeToString(pk.Bytes())))
+
+	// Now compare the secret key
 	actual_sk := strings.ToUpper(hex.EncodeToString(sk.ExpandedBytesForTesting()))
-	// First, assert seed-derived values
 	assert.Equal(t, expect_sk, actual_sk)
 }
