@@ -128,13 +128,11 @@ func BitPack(w RingElement, a, b uint32) []byte {
 	bitlen := bits.Len32(uint32(a + b))
 	for i := range 256 {
 		var diff uint32
+		wi := uint32(w[i])
+		diff = b - wi
 		// TODO: Figure out why this behavior differs when a != b
 		if a == b {
-			wi := uint32(w[i])
-			diff = b - wi
-			diff += (diff >> 31) * q
-		} else {
-			diff = b - uint32(w[i])
+			diff += -(diff >> 31) & q
 		}
 		bits := Uint32ToBits(diff, bitlen)
 		z = append(z, bits[0:bitlen]...)
