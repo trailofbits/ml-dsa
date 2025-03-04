@@ -61,3 +61,45 @@ func RingVectorAdd(k uint8, a RingVector, b RingVector) RingVector {
 	}
 	return c
 }
+
+func RingVectorSub(k uint8, a RingVector, b RingVector) RingVector {
+	c := NewRingVector(k)
+	for i := range k {
+		c[i] = RingSub(a[i], b[i])
+	}
+	return c
+}
+
+func NegateRingVector(k uint8, a RingVector) RingVector {
+	c := NewRingVector(k)
+	for i := range k {
+		for j := range 256 {
+			c[i][j] = CoeffReduceOnce(q - uint32(a[i][j]))
+		}
+	}
+	return c
+}
+
+func InfinityNormRingElement(w RingElement) uint32 {
+	max := uint32(0)
+	for i := range n {
+		tmp := InfinityNorm(uint32(w[i]))
+		if tmp > max {
+			max = tmp
+		}
+	}
+	return max
+}
+
+func InfinityNormRingVector(k uint8, w RingVector) uint32 {
+	max := uint32(0)
+	for i := range k {
+		for j := range n {
+			tmp := InfinityNorm(uint32(w[i][j]))
+			if tmp > max {
+				max = tmp
+			}
+		}
+	}
+	return max
+}

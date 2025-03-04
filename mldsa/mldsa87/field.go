@@ -48,7 +48,7 @@ func expandS(rho []byte) (common.RingVector, common.RingVector) {
 	return common.ExpandS(k, l, int(η), rho)
 }
 
-func expandMask(rho []byte, mu uint64) common.RingVector {
+func expandMask(rho []byte, mu uint16) common.RingVector {
 	return common.ExpandMask(l, γ1, rho, mu)
 }
 
@@ -85,4 +85,8 @@ func matrixVectorNTT(M_hat common.NttMatrix, v_hat common.NttVector) common.NttV
 
 func ringPower2Round(r common.RingElement) (common.RingElement, common.RingElement) {
 	return common.RingPower2Round(k, r)
+}
+
+func ringVecPower2Round(r common.RingVector) (common.RingVector, common.RingVector) {
+	return common.RingVecPower2Round(k, r)
 }
