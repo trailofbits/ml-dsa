@@ -351,6 +351,38 @@ func W1Encode(k uint8, gamma2 uint32, w1 RingVector) []byte {
 	return w
 }
 
+/*
+pub fn sample_in_ball(rho: &[u8], tau: usize) -> Polynomial {
+    const ONE: Elem = Elem::new(1);
+    const MINUS_ONE: Elem = Elem::new(BaseField::Q - 1);
+
+    let mut c = Polynomial::default();
+    let mut ctx = H::default().absorb(rho);
+
+    let mut s = [0u8; 8];
+    ctx.squeeze(&mut s);
+
+    // h = bytes_to_bits(s)
+    let mut j = [0u8];
+    for i in (256 - tau)..256 {
+        ctx.squeeze(&mut j);
+        while usize::from(j[0]) > i {
+            ctx.squeeze(&mut j);
+        }
+
+        let j = usize::from(j[0]);
+        c.0[i] = c.0[j];
+        c.0[j] = if bit_set(&s, i + tau - 256) {
+            MINUS_ONE
+        } else {
+            ONE
+        };
+    }
+
+    c
+}
+*/
+
 // Algorithm 29
 func SampleInBall(tau uint8, seed []byte) (c RingElement) {
 	ctx := sha3.NewShake256()
@@ -370,8 +402,9 @@ func SampleInBall(tau uint8, seed []byte) (c RingElement) {
 		}
 		j0 := int16(j[0])
 		c[i] = c[j0]
+		// Swap between 1 and -1 without side-channels
 		diff := uint32(1) - uint32(h[i+tau16-256])<<1
-		diff += (diff >> 31) * q
+		diff += -(diff >> 31) & q
 		c[j0] = CoeffReduceOnce(diff) // c_j <- (-1)^h[i+tau-256]
 	}
 	return c
@@ -431,7 +464,7 @@ func ExpandA(k, l uint8, rho []byte) NttMatrix {
 	return Ahat
 }
 
-func packUint16(x uint16) []byte {
+func PackUint16(x uint16) []byte {
 	b := make([]byte, 2)
 	b[0] = byte(x & 0xff)
 	b[1] = byte(x >> 8)
@@ -443,12 +476,12 @@ func ExpandS(k, l uint8, eta int, rho []byte) (RingVector, RingVector) {
 	s1 := NewRingVector(l)
 	s2 := NewRingVector(k)
 	for r := range l {
-		r_le := packUint16(uint16(r))
+		r_le := PackUint16(uint16(r))
 		packed := append(rho, r_le...)
 		s1[r] = RejBoundedPoly(eta, packed[:])
 	}
 	for r := range k {
-		r_le := packUint16(uint16(r) + uint16(l))
+		r_le := PackUint16(uint16(r) + uint16(l))
 		packed := append(rho, r_le...)
 		s2[r] = RejBoundedPoly(eta, packed[:])
 	}
@@ -470,7 +503,7 @@ func ExpandMask(l uint8, gamma1 uint32, rho []byte, mu uint16) RingVector {
 	c := uint32(1 + bits.Len32(gamma1-1))
 	for r := range l {
 		// rho' <- rho || IntegerToBytes(mu + r, 2)
-		as16 := packUint16(uint16(r) + mu)
+		as16 := PackUint16(uint16(r) + mu)
 		packed := append(rho, as16...)
 		// v <- H(rho', 32c)
 		v := H(packed, c<<5)
@@ -520,17 +553,15 @@ func Decompose(gamma2 uint32, r uint32) (uint32, uint32) {
 
 func DecomposeVarTime(gamma2 uint32, r uint32) (uint32, uint32) {
 	m := gamma2 << 1
-	// rpos <- r mod q
-	rpos := uint32(r % q)
-	// r0 <- r+ mod 2*gamma2
-	r0 := ModPlusMinus(rpos, m)
-	diff := (rpos - r0)
-	diff += -(diff >> 31) & q
-	if diff == q-1 {
-		return uint32(0), uint32(r0 - 1)
+	r_plus := r % q
+	r0 := ModPlusMinus(r, m)
+	diff := r - r0
+	diff += q & -(diff >> 31)
+	if r_plus-r0 == q-1 {
+		return uint32(0), r0 - 1
 	} else {
 		r1 := diff / m
-		return uint32(r1 % q), uint32(r0 % gamma2)
+		return r1 % q, r0 % q
 	}
 }
 
@@ -542,7 +573,7 @@ func ModPlusMinus(x uint32, m uint32) uint32 {
 	halfm := m >> 1
 	y := x % m // Reduce x mod m
 	if y > halfm {
-		return (q - (y - halfm)) // q - ((y % m) - halfm)
+		return q - m + y
 	}
 	return y
 	/*
