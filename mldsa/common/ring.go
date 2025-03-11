@@ -1,6 +1,11 @@
-package common
+// Copyright 2025 Trail of Bits. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
 
-import "fmt"
+// Package common implements the generic underlying algorithms from [NIST FIPS 204].
+//
+// See types.go
+package common
 
 func CoeffReduceOnce(a uint32) RingCoeff {
 	x := uint32(a - q)
@@ -98,9 +103,6 @@ func InfinityNormRingVector(k uint8, w RingVector) uint32 {
 	for i := range k {
 		for j := range n {
 			tmp := InfinityNorm(uint32(w[i][j]))
-			if (tmp >> 31) == 1 {
-				fmt.Printf("WHAT: \tw[%d][%d] = %d\t\tInf() = %d\n", i, j, w[i][j], tmp)
-			}
 			if tmp > max {
 				max = tmp
 			}

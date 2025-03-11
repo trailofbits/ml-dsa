@@ -12,6 +12,7 @@ func skEncode(rho, K, tr []byte, s1, s2, t0 common.RingVector) []byte {
 	return common.SKEncode(k, l, η, rho, K, tr, s1, s2, t0)
 }
 
+/*
 func skDecode(sk []byte) ([]byte, []byte, []byte, common.RingVector, common.RingVector, common.RingVector) {
 	return common.SKDecode(k, l, η, sk)
 }
@@ -31,6 +32,7 @@ func w1Encode(w1 common.RingVector) []byte {
 func sampleInBall(seed []byte) common.RingElement {
 	return common.SampleInBall(т, seed)
 }
+*/
 
 func expandA(rho []byte) common.NttMatrix {
 	return common.ExpandA(k, l, rho)

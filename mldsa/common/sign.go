@@ -5,6 +5,21 @@ import (
 	"errors"
 )
 
+// Algorithm 7
+//
+// These parameters are specific to the ML-DSA instance (44, 65, or 87):
+// k, l, beta, tau, omega, eta, lambda, gamma1, and gamma2
+//
+// These are properties from the secret key:
+// t0, seed, K, tr
+//
+// The message representitve being signed is:
+// Mprime
+//
+// Additional randomness is passed as:
+// rnd
+//
+// Returns a signature as a []byte upon success, or an error if too many rejections occurred
 func SignInternal(k, l, beta, tau, omega uint8, eta int, lambda uint16, gamma1 uint32, gamma2 uint32, t0 RingVector, seed, K, tr, Mprime, rnd []byte) ([]byte, error) {
 	hashed := H(append(seed[:], byte(k), byte(l)), 128)
 	rho := make([]byte, 32)
@@ -88,6 +103,22 @@ func SignInternal(k, l, beta, tau, omega uint8, eta int, lambda uint16, gamma1 u
 	}
 }
 
+// Algorithm 8
+//
+// These parameters are specific to the ML-DSA instance (44, 65, or 87):
+// k, l, beta, tau, omega, lambda, gamma1, gamma2
+//
+// These are properties from the public key:
+// rho, t1
+//
+// The message representitve for the signature is:
+// Mprime
+//
+// The signature being validated is:
+// sigma
+//
+// Returns true if the signature is valid.
+// Returns false otherwise (even if an error occurs).
 func VerifyInternal(k, l, beta, tau, omega uint8, lambda uint16, gamma1, gamma2 uint32, rho []byte, t1 RingVector, Mprime, sigma []byte) bool {
 	c_tilde, z, h, err := SigDecode(k, l, omega, lambda, gamma1, sigma)
 	if err != nil {

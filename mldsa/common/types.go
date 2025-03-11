@@ -1,3 +1,21 @@
+// Copyright 2025 Trail of Bits. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// Package common implements the generic underlying algorithms from [NIST FIPS 204].
+//
+// The types.go file defines the following data types:
+//
+// POLYNOMIAL:
+// - RingCoeff (integers mod q)
+// - RingElement ([n]RingCoeff)
+// - RingVector ([k]RingVector, a.k.a. [k][n]RingCoeff)
+//
+// NTT DOMAIN:
+// - FieldElement (integers mod q, in the NTT domain)
+// - NttElement ([n]FieldElement)
+// - NttVector ([]NttElement)
+// - NttMatrix ([]NttVector)
 package common
 
 // Field elements are in the range [0, q-1]. This fits in a uint32.

@@ -1,3 +1,17 @@
+// Copyright 2025 Trail of Bits. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// Package common implements the generic underlying algorithms from [NIST FIPS 204].
+//
+// This aux.go file contains the auxiliary internal functions needed to implement ML-DSA.
+//
+// The implementations here have slightly more verbose function prototypes than FIPS-204,
+// due to the need to parametrize the functions based on the actual parameter sets for the
+// ML-DSA algorithm being used. The first parameters to all functions are constants to the
+// specific instantiation of ML-DSA (e.g., k, l, or omega2).
+//
+// [NIST FIPS 204]: https://doi.org/10.6028/NIST.FIPS.204
 package common
 
 import (
@@ -40,6 +54,7 @@ func BitsToInteger(y []byte, a int) uint32 {
 	return x
 }
 
+// Variants of Algorithm 11
 func IntegerToBytes(x uint32, a int) []byte {
 	xp := x
 	y := make([]byte, a)
@@ -144,7 +159,6 @@ func BitPack(w RingElement, a, b uint32) []byte {
 }
 
 // Algorithm 18
-// As of 2025-02-26, I suspect this has bugs
 func SimpleBitUnpack(v []byte, b uint32) (w RingElement) {
 	c := bits.Len32(b)
 	z := BytesToBits(v)
@@ -196,18 +210,19 @@ func HintBitPack(k, omega uint8, h RingVector) []byte {
 }
 
 // Algorithm 21
+// This is used by signature verification, which does not need to be constant-time
 func HintBitUnpack(k, omega uint8, y []byte) (RingVector, error) {
 	h := NewRingVector(k)
 	index := byte(0)
 	for i := range k {
 		if y[omega+i] < index || y[omega+i] > omega {
-			return nil, errors.New("malformed input: 201")
+			return nil, errors.New("malformed input")
 		}
 		first := index
 		for index < y[omega+i] {
 			if index > first {
 				if y[index-1] >= y[index] {
-					return nil, errors.New("malformed input: 207")
+					return nil, errors.New("malformed input")
 				}
 			}
 			yidx := y[index]
@@ -426,6 +441,7 @@ func ExpandA(k, l uint8, rho []byte) NttMatrix {
 	return Ahat
 }
 
+// Pack a uint16 as a []byte of length 2, in little-endian order
 func PackUint16(x uint16) []byte {
 	b := make([]byte, 2)
 	b[0] = byte(x & 0xff)
@@ -491,6 +507,7 @@ func Decompose(gamma2 uint32, r uint32) (uint32, uint32) {
 	return DecomposeVarTime(gamma2, r)
 }
 
+// This is the straightforward algorithm. It is not constant-time.
 func DecomposeVarTime(gamma2 uint32, r uint32) (uint32, uint32) {
 	m := gamma2 << 1
 	r_plus := r % q
@@ -610,6 +627,7 @@ func HighBits(gamma2 uint32, r uint32) uint32 {
 	return r1
 }
 
+// Helper function for calling HighBits on a RingElement
 func HighBitsElement(gamma2 uint32, e RingElement) RingElement {
 	x := NewRingElement()
 	for i := range 256 {
@@ -619,6 +637,7 @@ func HighBitsElement(gamma2 uint32, e RingElement) RingElement {
 	return x
 }
 
+// Helper function for calling HighBits on a RingVector
 func HighBitsVec(k uint8, gamma2 uint32, r RingVector) RingVector {
 	v := NewRingVector(k)
 	for i := range k {
@@ -633,6 +652,7 @@ func LowBits(gamma2 uint32, r uint32) uint32 {
 	return r0
 }
 
+// Helper function for calling LowBits on a RingElement
 func LowBitsElement(gamma2 uint32, e RingElement) RingElement {
 	x := NewRingElement()
 	for i := range 256 {
@@ -642,6 +662,7 @@ func LowBitsElement(gamma2 uint32, e RingElement) RingElement {
 	return x
 }
 
+// Helper function for calling LowBits on a RingVector
 func LowBitsVec(k uint8, gamma2 uint32, r RingVector) RingVector {
 	v := NewRingVector(k)
 	for i := range k {
@@ -660,6 +681,7 @@ func MakeHint(gamma2 uint32, z, r FieldElement) uint8 {
 	return uint8(^((r1^v1)-1)>>31) & 1
 }
 
+// Helper function for calling MakeHint on a RingElement
 func MakeHintRingElement(gamma2 uint32, z, r RingElement) []uint8 {
 	hints := make([]uint8, 256)
 	for j := range 256 {
@@ -670,6 +692,7 @@ func MakeHintRingElement(gamma2 uint32, z, r RingElement) []uint8 {
 	return hints
 }
 
+// Helper function for calling MakeHint on a RingVector
 func MakeHintRingVec(k uint8, gamma2 uint32, z, r RingVector) [][]uint8 {
 	hints := make([][]uint8, k)
 	for i := range k {
@@ -691,6 +714,7 @@ func CountOnesHint(k uint8, w [][]uint8) uint32 {
 }
 
 // Algorithm 40
+// This is designed to be constant-time
 func UseHint(gamma2 uint32, h uint8, r FieldElement) FieldElement {
 	// This is a constant value. We can make this a look-up table if we want to avoid the division.
 	m := (q - 1) / (gamma2 << 1)
@@ -739,6 +763,7 @@ func UseHint(gamma2 uint32, h uint8, r FieldElement) FieldElement {
 	return FieldElement(x)
 }
 
+// Helper function for calling UseHint on a RingElement
 func UseHintRingElement(gamma2 uint32, h []uint8, r RingElement) RingElement {
 	r1 := NewRingElement()
 	for j := range 256 {
@@ -748,6 +773,7 @@ func UseHintRingElement(gamma2 uint32, h []uint8, r RingElement) RingElement {
 	return r1
 }
 
+// Helper function for calling UseHint on a RingVector
 func UseHintRingVector(k uint8, gamma2 uint32, h [][]uint8, rv RingVector) RingVector {
 	rv1 := NewRingVector(k)
 	for i := range k {
@@ -852,6 +878,8 @@ func NTTAdd(a, b NttElement) (c NttElement) {
 	}
 	return c
 }
+
+// This is implied by Algorithm 44
 func NTTSub(a, b NttElement) (c NttElement) {
 	for i := range c {
 		c[i] = FieldSub(a[i], b[i])
@@ -876,6 +904,7 @@ func AddVectorNTT(l uint8, v, w NttVector) NttVector {
 	return u
 }
 
+// This is implied by Algorithm 46, but needed for Verify_internal()
 func SubVectorNTT(k uint8, a, b NttVector) NttVector {
 	c := NewNttVector(k)
 	for i := range k {
@@ -905,6 +934,8 @@ func MatrixVectorNTT(k, l uint8, M_hat NttMatrix, v_hat NttVector) NttVector {
 }
 
 // Calculate the infinity norm.
+//
+// This is described in FIPS-204 as algebraic notation, rather than code.
 func InfinityNorm(x uint32) uint32 {
 	q2 := uint32(q >> 1)
 	// Get the sign bit of x - q/2, to see if we're dealing with a "negative" number.
