@@ -115,8 +115,11 @@ func CoeffFromHalfByte(eta int, b byte) (RingCoeff, error) {
 func SimpleBitPack(w RingElement, b uint32) []byte {
 	var bitlen int = bits.Len32(b)
 	var z []byte
+	q2 := uint32(q >> 1)
 	for i := range 256 {
-		suffix := Uint32ToBits(uint32(w[i]), bitlen)
+		wi := uint32(w[i])
+		wi -= -((q2 - wi) >> 31) & q
+		suffix := Uint32ToBits(wi, bitlen)
 		z = append(z, suffix[0:bitlen]...)
 	}
 	return BitsToBytes(z)
@@ -351,38 +354,6 @@ func W1Encode(k uint8, gamma2 uint32, w1 RingVector) []byte {
 	return w
 }
 
-/*
-pub fn sample_in_ball(rho: &[u8], tau: usize) -> Polynomial {
-    const ONE: Elem = Elem::new(1);
-    const MINUS_ONE: Elem = Elem::new(BaseField::Q - 1);
-
-    let mut c = Polynomial::default();
-    let mut ctx = H::default().absorb(rho);
-
-    let mut s = [0u8; 8];
-    ctx.squeeze(&mut s);
-
-    // h = bytes_to_bits(s)
-    let mut j = [0u8];
-    for i in (256 - tau)..256 {
-        ctx.squeeze(&mut j);
-        while usize::from(j[0]) > i {
-            ctx.squeeze(&mut j);
-        }
-
-        let j = usize::from(j[0]);
-        c.0[i] = c.0[j];
-        c.0[j] = if bit_set(&s, i + tau - 256) {
-            MINUS_ONE
-        } else {
-            ONE
-        };
-    }
-
-    c
-}
-*/
-
 // Algorithm 29
 func SampleInBall(tau uint8, seed []byte) (c RingElement) {
 	ctx := sha3.NewShake256()
@@ -519,7 +490,8 @@ func Power2Round(r uint32) (uint32, uint32) {
 	a1 := (r + shift) >> d
 	a0 := (r - (a1 << d))
 	// If we underflowed, let's mask out the relevant bits
-	a0 &= (1 << d) - 1
+	a0 += -(a0 >> 31) & q
+	// a0 &= (1 << d) - 1
 	return a1, a0
 }
 
@@ -528,36 +500,13 @@ func Decompose(gamma2 uint32, r uint32) (uint32, uint32) {
 	return DecomposeVarTime(gamma2, r)
 }
 
-/*
-	fn mod_plus_minus<M: Unsigned>(&self) -> Self {
-	    let raw_mod = Elem::new(M::reduce(self.0));
-	    if raw_mod.0 <= M::U32 >> 1 {
-	        raw_mod
-	    } else {
-	        raw_mod - Elem::new(M::U32)
-	    }
-
-	fn decompose<TwoGamma2: Unsigned>(self) -> (Elem, Elem) {
-	    let r_plus = self.clone();
-	    let r0 = r_plus.mod_plus_minus::<TwoGamma2>();
-
-	    if r_plus - r0 == Elem::new(BaseField::Q - 1) {
-	        (Elem::new(0), r0 - Elem::new(1))
-	    } else {
-	        let mut r1 = r_plus - r0;
-	        r1.0 /= TwoGamma2::U32;
-	        (r1, r0)
-	    }
-	}
-*/
-
 func DecomposeVarTime(gamma2 uint32, r uint32) (uint32, uint32) {
 	m := gamma2 << 1
 	r_plus := r % q
 	r0 := ModPlusMinus(r, m)
-	diff := r - r0
+	diff := r_plus - r0
 	diff += q & -(diff >> 31)
-	if r_plus-r0 == q-1 {
+	if diff == q-1 {
 		return uint32(0), r0 - 1
 	} else {
 		r1 := diff / m
@@ -743,7 +692,8 @@ func CountOnesHint(k uint8, w [][]uint8) uint32 {
 	ones := uint32(0)
 	for i := range k {
 		for j := range 256 {
-			ones += uint32(w[i][j] & 1)
+			wij := uint32(w[i][j])
+			ones += wij & 1
 		}
 	}
 	return ones
@@ -965,17 +915,14 @@ func MatrixVectorNTT(k, l uint8, M_hat NttMatrix, v_hat NttVector) NttVector {
 // Calculate the infinity norm.
 func InfinityNorm(x uint32) uint32 {
 	q2 := uint32(q >> 1)
-
 	// Get the sign bit of x - q/2, to see if we're dealing with a "negative" number.
 	// We encode (-x) as (q - x) since they are congruent mod q. The only signed ints
 	// we deal with in ML-DSA are in the range [-2^10, 2^10], which is less than q/2.
-
-	// if x < q/2 { return x }
-	sb := (q2 - x) >> 31
-
-	// Do a conditional swap
-	mask := uint32(-sb)
-
-	// if (x >= q/2) { return q - x }
-	return ((q - x) & mask) ^ (x & ^mask)
+	x -= -((q - x) >> 31) & q
+	x += -(x >> 31) & q
+	// put x in [0, q)
+	if x >= q2 {
+		return q - x
+	}
+	return x
 }

@@ -1,8 +1,10 @@
 package common
 
+import "fmt"
+
 func CoeffReduceOnce(a uint32) RingCoeff {
 	x := uint32(a - q)
-	x += (x >> 31) * q
+	x += -(x >> 31) & q
 	return RingCoeff(x)
 }
 
@@ -96,6 +98,9 @@ func InfinityNormRingVector(k uint8, w RingVector) uint32 {
 	for i := range k {
 		for j := range n {
 			tmp := InfinityNorm(uint32(w[i][j]))
+			if (tmp >> 31) == 1 {
+				fmt.Printf("WHAT: \tw[%d][%d] = %d\t\tInf() = %d\n", i, j, w[i][j], tmp)
+			}
 			if tmp > max {
 				max = tmp
 			}

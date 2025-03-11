@@ -94,6 +94,7 @@ func KeyGenInternal(seed [32]byte) (SigningKey, VerifyingKey) {
 	tr := common.H(pke, 64)
 	copy(tr_copy[:], tr[:])
 	for i := range int(k) {
+		t0_copy[i] = common.NewRingElement()
 		t1_copy[i] = common.NewRingElement()
 		for j := range 256 {
 			t1_copy[i][j] = t1[i][j]
@@ -135,7 +136,7 @@ func (sk SigningKey) ExpandedBytesForTesting() []byte {
 	_, t0 := ringVecPower2Round(t)
 	// END DEBUG
 
-	return skEncode(sk.ρ[:], sk.K[:], sk.tr[:], s1, s2, t0)
+	return skEncode(sk.ρ[:], sk.K[:], sk.tr[:], s1, s2, t0[:])
 }
 
 func (sk SigningKey) VerificationKey() VerifyingKey {
@@ -190,7 +191,7 @@ func (sk SigningKey) SignInternal(Mprime, rnd []byte) ([]byte, error) {
 			t0[i][j] = sk.t0[i][j]
 		}
 	}
-	return common.SignInternal(k, l, β, т, ω, int(η), λ, γ1, γ2, t0, sk.seed[:], sk.K[:], sk.tr[:], Mprime, rnd)
+	return common.SignInternal(k, l, β, т, ω, int(η), λ, γ1, γ2, t0[:], sk.seed[:], sk.K[:], sk.tr[:], Mprime, rnd)
 }
 
 func (vk VerifyingKey) VerifyInternal(M, signature []byte) bool {
