@@ -659,7 +659,7 @@ func LowBitsVec(k uint8, gamma2 uint32, r RingVector) RingVector {
 // Algorithm 39
 func MakeHint(gamma2 uint32, z, r FieldElement) uint8 {
 	r1 := HighBits(gamma2, uint32(r))
-	v1 := HighBits(gamma2, uint32(r+z))
+	v1 := HighBits(gamma2, uint32(r+z)%q)
 	// return (r1 ^ v1) != 0
 	// r1 == v1 -> return 0
 	// r1 != v1 -> return 1
