@@ -3,6 +3,7 @@ package common
 import (
 	"errors"
 	"math/bits"
+	"slices"
 
 	"golang.org/x/crypto/sha3"
 )
@@ -70,7 +71,7 @@ func BitsToBytes(y []byte) []byte {
 // Input: array of bytes
 // Output: array of bits (but also a []byte type)
 func BytesToBits(z []byte) []byte {
-	zprime := z[:]
+	zprime := slices.Clone(z)
 	len := len(z)
 	y := make([]byte, len<<3)
 	for i := range len {
@@ -162,7 +163,8 @@ func BitUnpack(v []byte, a, b uint32) (w RingElement) {
 	z := BytesToBits(v)
 	for i := range 256 {
 		start := i * c
-		bits := BitsToInteger(z[start:], c)
+		stop := start + c
+		bits := BitsToInteger(z[start:stop], c)
 		diff := b - bits
 		diff += (diff >> 31) * q
 		w[i] = CoeffReduceOnce(diff)
@@ -260,21 +262,13 @@ func SKEncode(k, l, eta uint8, rho, K, tr []byte, s1, s2, t0 RingVector) []byte 
 		packed := BitPack(s2[i], uint32(eta), uint32(eta))
 		sk = append(sk, packed[:]...)
 	}
-	// print("\n")
+
 	max := uint32(1 << (d - 1))
 	min := max - 1
 	for i := range k {
 		packed := BitPack(t0[i], min, max)
-		/*
-			print("\n")
-			for x := range 256 {
-				fmt.Printf("%x, ", t0[i][x])
-			}
-			print("\npacked:", hex.EncodeToString(packed), "\n")
-		*/
 		sk = append(sk, packed[:]...)
 	}
-	// print("\n")
 	return sk
 }
 
@@ -316,21 +310,21 @@ func SigEncode(k, l, omega uint8, gamma1 uint32, c []byte, z, h RingVector) []by
 
 // Algorithm 27
 func SigDecode(k, l, omega uint8, lambda uint16, gamma1 uint32, sig []byte) ([]byte, RingVector, RingVector, error) {
+	sigma := slices.Clone(sig)
 	z := NewRingVector(k)
 	bitlen := bits.Len32(gamma1 - 1)
 
 	length := uint32(lambda >> 2)
-	c, sig := sig[0:length], sig[length:]
+	c, sigma := sigma[0:length], sigma[length:]
 
 	length = uint32((1 + bitlen) << 5)
-	x, sig := sig[0:length], sig[length:]
-
-	length = uint32(omega + k)
-	y := sig[0:length]
-
+	start := uint32(0)
 	for i := range l {
-		z[i] = BitUnpack(x[i:i], uint32(gamma1-1), uint32(gamma1))
+		x := sigma[start:]
+		start += length
+		z[i] = BitUnpack(x[:], uint32(gamma1-1), uint32(gamma1))
 	}
+	y := sigma[start:]
 	h, err := HintBitUnpack(k, omega, y)
 	if err != nil {
 		return nil, nil, nil, err
@@ -700,6 +694,7 @@ func CountOnesHint(k uint8, w [][]uint8) uint32 {
 func UseHint(gamma2 uint32, h uint8, r FieldElement) FieldElement {
 	// This is a constant value. We can make this a look-up table if we want to avoid the division.
 	m := (q - 1) / (gamma2 << 1)
+	q2 := uint32(q >> 1)
 	r1, r0 := Decompose(gamma2, uint32(r))
 
 	// We rewrote some conditional logic here to be constant-time
@@ -725,19 +720,19 @@ func UseHint(gamma2 uint32, h uint8, r FieldElement) FieldElement {
 	// | 0 |    1   |    0   |       r1  |
 
 	// r0sign is the sign bit of r0-1
-	r0sign := uint32(r0-1) >> 31
-	// fmt.Printf("r = %d -> (r0: %d, r1: %d); r0sign = %d\n", r, r0, r1, r0sign)
+	r0sign := uint32(q2-r0) >> 31
 
 	// -h becomes -1 or 0, which is then used as a mask for bitwise AND
+	mask := -uint32(h)
 	// (1 - (r0sign << 1)) becomes 1 if r0sign == 0. It becomes -1 if r0sign == 1.
 	// This works because 1 - 0 == 1, but 1 - 2 == -1, and (r0sign << 1) is either 0 or 2.
-	adjust := -uint32(h) & uint32(1-(r0sign<<1))
+	adjust := mask & uint32(1-(r0sign<<1))
 
 	// Now that we have an adjustment value in the range (-1, 0, +1), add it to r1.
 	unreduced := r1 + adjust
 
 	// The final step is to reduce the result mod m:
-	x := uint32(unreduced) - m
+	x := uint32(unreduced)
 	x += -(x >> 31) & m
 
 	// We return the result as a fieldElement:

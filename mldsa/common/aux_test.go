@@ -580,6 +580,24 @@ func TestMakeUseHint(t *testing.T) {
 	}
 }
 
+func TestUseHint(t *testing.T) {
+	tests := []struct {
+		gamma2 uint32
+		h      uint8
+		input  uint32
+		output uint32
+	}{
+		{95232, 0, 0, 0},
+		{95232, 1, 0, 1},
+		{95232, 0, 95232, 0},
+	}
+	for _, tt := range tests {
+		r := common.Uint32ToFieldElement(tt.input)
+		out := common.UseHint(tt.gamma2, tt.h, r)
+		assert.Equal(t, common.Uint32ToFieldElement(tt.output), out)
+	}
+}
+
 func TestNTTAndInverse(t *testing.T) {
 	// Operations are inverses
 	w0 := common.NewRingElement()

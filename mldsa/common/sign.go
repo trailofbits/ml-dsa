@@ -98,19 +98,20 @@ func VerifyInternal(k, l, beta, tau, omega uint8, lambda uint16, gamma1, gamma2 
 	}
 	Ahat := ExpandA(k, l, rho)
 	tr := H(PKEncode(k, rho, t1), 64)
-	tr_bits := BytesToBits(tr)
-	mu := H(append(tr_bits, Mprime...), 64)
+	mu := H(append(tr, Mprime...), 64)
 	c := SampleInBall(tau, c_tilde)
 
 	z_hat := NttVec(k, z)
 	c_hat := NTT(c)
-	t1_2d := NewNttVector(k)
+	t1_2d := NewRingVector(k)
 	for i := range k {
 		for j := range 256 {
-			t1_2d[i][j] = FieldReduceOnce(uint32(t1[i][j] << d))
+			ti := uint32(t1[i][j]) << d
+			t1_2d[i][j] = CoeffReduceOnce(ti % q)
 		}
 	}
-	ct1_2d_hat := ScalarVectorNTT(k, c_hat, t1_2d)
+	t1_2d_hat := NttVec(k, t1_2d)
+	ct1_2d_hat := ScalarVectorNTT(k, c_hat, t1_2d_hat)
 	Azhat := MatrixVectorNTT(k, l, Ahat, z_hat)
 	// w_approx := InvNttVec(k, Azhat - ct1_2d_hat)
 	w_approx := InvNttVec(k, SubVectorNTT(k, Azhat, ct1_2d_hat))
