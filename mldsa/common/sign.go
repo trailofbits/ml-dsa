@@ -3,7 +3,6 @@ package common
 import (
 	"crypto/subtle"
 	"errors"
-	"fmt"
 )
 
 func SignInternal(k, l, beta, tau, omega uint8, eta int, lambda uint16, gamma1 uint32, gamma2 uint32, t0 RingVector, seed, K, tr, Mprime, rnd []byte) ([]byte, error) {
@@ -37,7 +36,7 @@ func SignInternal(k, l, beta, tau, omega uint8, eta int, lambda uint16, gamma1 u
 		w1 := HighBitsVec(k, gamma2, w)
 		w1_encoded := W1Encode(k, gamma2, w1)
 		c_tilde := H(append(mu, w1_encoded...), uint32(lambda>>2))
-		c := SampleInBall(tau, c_tilde)
+		c := SampleInBall(tau, c_tilde[:])
 		c_hat := NTT(c)
 
 		cs1 := InvNttVec(l, ScalarVectorNTT(l, c_hat, s1hat))
@@ -68,7 +67,6 @@ func SignInternal(k, l, beta, tau, omega uint8, eta int, lambda uint16, gamma1 u
 			fail = true
 		}
 		kappa = kappa + uint16(l)
-		fmt.Printf("kappa = %d\n", kappa)
 
 		// Loop termination via return
 		if !fail {
@@ -79,7 +77,7 @@ func SignInternal(k, l, beta, tau, omega uint8, eta int, lambda uint16, gamma1 u
 					h_vec[i][j] = RingCoeff(uint32(h[i][j]))
 				}
 			}
-			return SigEncode(k, l, omega, gamma1, c_tilde, z, h_vec), nil
+			return SigEncode(k, l, omega, gamma1, c_tilde[:], z[:], h_vec), nil
 		}
 
 		// Appendix C - Loop Bounds

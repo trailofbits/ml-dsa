@@ -185,7 +185,7 @@ func HintBitPack(k, omega uint8, h RingVector) []byte {
 			swap := uint8(((h[i][j] - 1) >> 15) & 1)
 			mask := byte(-swap)
 			jb := byte(j)
-			y[index] = (jb & mask) ^ (y[index] & ^mask)
+			y[index] = (jb & ^mask) ^ (y[index] & mask)
 			index += 1 - swap
 		}
 		y[omega+i] = byte(index)
@@ -311,7 +311,7 @@ func SigEncode(k, l, omega uint8, gamma1 uint32, c []byte, z, h RingVector) []by
 	}
 	packed := HintBitPack(k, omega, h)
 	sigma = append(sigma, packed...)
-	return sigma
+	return sigma[:]
 }
 
 // Algorithm 27
