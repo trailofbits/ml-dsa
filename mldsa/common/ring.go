@@ -1,8 +1,15 @@
+// Copyright 2025 Trail of Bits. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// Package common implements the generic underlying algorithms from [NIST FIPS 204].
+//
+// See types.go
 package common
 
 func CoeffReduceOnce(a uint32) RingCoeff {
 	x := uint32(a - q)
-	x += (x >> 31) * q
+	x += -(x >> 31) & q
 	return RingCoeff(x)
 }
 
@@ -60,4 +67,46 @@ func RingVectorAdd(k uint8, a RingVector, b RingVector) RingVector {
 		c[i] = RingAdd(a[i], b[i])
 	}
 	return c
+}
+
+func RingVectorSub(k uint8, a RingVector, b RingVector) RingVector {
+	c := NewRingVector(k)
+	for i := range k {
+		c[i] = RingSub(a[i], b[i])
+	}
+	return c
+}
+
+func NegateRingVector(k uint8, a RingVector) RingVector {
+	c := NewRingVector(k)
+	for i := range k {
+		for j := range 256 {
+			c[i][j] = CoeffReduceOnce(q - uint32(a[i][j]))
+		}
+	}
+	return c
+}
+
+func InfinityNormRingElement(w RingElement) uint32 {
+	max := uint32(0)
+	for i := range n {
+		tmp := InfinityNorm(uint32(w[i]))
+		if tmp > max {
+			max = tmp
+		}
+	}
+	return max
+}
+
+func InfinityNormRingVector(k uint8, w RingVector) uint32 {
+	max := uint32(0)
+	for i := range k {
+		for j := range n {
+			tmp := InfinityNorm(uint32(w[i][j]))
+			if tmp > max {
+				max = tmp
+			}
+		}
+	}
+	return max
 }

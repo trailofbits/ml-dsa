@@ -5,6 +5,7 @@ package mldsa44
 
 import (
 	"crypto/rand"
+	"errors"
 
 	"trailofbits.com/ml-dsa/mldsa/common"
 )
@@ -38,12 +39,10 @@ type SigningKey struct {
 	ρ    [32]byte // Rho is the public seed
 	K    [32]byte
 	tr   [64]byte
+	t0   [k]common.RingElement
 	t1   [k]common.RingElement
 }
 
-// 32 + (32 * k * (bitlen(q-1)-d))
-// 32 + (32 * k * (23 - 13))
-// 32 + 320 * k
 type VerifyingKey struct {
 	ρ  [32]byte // Rho is the public seed
 	t1 [k]common.RingElement
@@ -83,7 +82,7 @@ func KeyGenInternal(seed [32]byte) (SigningKey, VerifyingKey) {
 	// t = (A * s1) + s2
 	s1hat := common.NttVec(l, s1)
 	multiplied := common.MatrixVectorNTT(k, l, Ahat, s1hat)
-	inverted := common.InvNttVec(l, multiplied)
+	inverted := common.InvNttVec(k, multiplied)
 	t := common.RingVectorAdd(k, inverted, s2)
 
 	// multiplied := nttMul(Ahat, common.NTT(s1))
@@ -95,6 +94,7 @@ func KeyGenInternal(seed [32]byte) (SigningKey, VerifyingKey) {
 	tr := common.H(pke, 64)
 	copy(tr_copy[:], tr[:])
 	for i := range int(k) {
+		t0_copy[i] = common.NewRingElement()
 		t1_copy[i] = common.NewRingElement()
 		for j := range 256 {
 			t1_copy[i][j] = t1[i][j]
@@ -103,7 +103,7 @@ func KeyGenInternal(seed [32]byte) (SigningKey, VerifyingKey) {
 	}
 	copy(rho_copy[:], rho[:])
 	copy(K_copy[:], K[:])
-	sk := SigningKey{seed, rho_copy, K_copy, tr_copy, t0_copy}
+	sk := SigningKey{seed, rho_copy, K_copy, tr_copy, t0_copy, t1_copy}
 	vk := VerifyingKey{rho_copy, t1_copy}
 	return sk, vk
 }
@@ -127,7 +127,7 @@ func (sk SigningKey) ExpandedBytesForTesting() []byte {
 	// t = (A * s1) + s2
 	s1hat := common.NttVec(l, s1)
 	multiplied := common.MatrixVectorNTT(k, l, Ahat, s1hat)
-	inverted := common.InvNttVec(l, multiplied)
+	inverted := common.InvNttVec(k, multiplied)
 	t := common.RingVectorAdd(k, inverted, s2)
 
 	// multiplied := nttMul(Ahat, common.NTT(s1))
@@ -136,16 +136,71 @@ func (sk SigningKey) ExpandedBytesForTesting() []byte {
 	_, t0 := ringVecPower2Round(t)
 	// END DEBUG
 
-	return skEncode(sk.ρ[:], sk.K[:], sk.tr[:], s1, s2, t0)
+	return skEncode(sk.ρ[:], sk.K[:], sk.tr[:], s1, s2, t0[:])
 }
 
-func (sk *SigningKey) VerificationKey() VerifyingKey {
+func (sk SigningKey) VerificationKey() VerifyingKey {
 	return VerifyingKey{sk.ρ, sk.t1}
 }
 
-func (vk *VerifyingKey) Bytes() []byte {
+func (vk VerifyingKey) Bytes() []byte {
 	var b [PublicKeySize]byte
 	encoded := pkEncode(vk.ρ[:], vk.t1[:])
 	copy(b[:], encoded[:])
 	return b[:]
+}
+
+func (sk SigningKey) Sign(message, ctx []byte) ([]byte, error) {
+	if len(ctx) > 255 {
+		return nil, errors.New("context string is too long")
+	}
+	rnd := make([]byte, 32)
+	_, err := rand.Read(rnd)
+	if err != nil {
+		return nil, err
+	}
+	Mprime := FormatMessageForSigning(message, ctx)
+	sigma, err := sk.SignInternal(Mprime, rnd)
+	if err != nil {
+		return nil, err
+	}
+	return sigma, nil
+}
+
+func (vk VerifyingKey) Verify(message, ctx, signature []byte) bool {
+	if len(ctx) > 255 {
+		return false
+	}
+	Mprime := FormatMessageForSigning(message, ctx)
+	return vk.VerifyInternal(Mprime, signature)
+}
+
+func FormatMessageForSigning(message, ctx []byte) []byte {
+	Mprime := common.BytesToBits(common.IntegerToBytes(0, 1))
+	Mprime = append(Mprime, common.IntegerToBytes(uint32(len(ctx)), 1)...)
+	Mprime = append(Mprime, ctx...)
+	Mprime = append(Mprime, message...)
+	return Mprime
+}
+
+func (sk SigningKey) SignInternal(Mprime, rnd []byte) ([]byte, error) {
+	// Coerce to a RingVector
+	t0 := common.NewRingVector(k)
+	for i := range k {
+		for j := range 256 {
+			t0[i][j] = sk.t0[i][j]
+		}
+	}
+	return common.SignInternal(k, l, β, т, ω, int(η), λ, γ1, γ2, t0[:], sk.seed[:], sk.K[:], sk.tr[:], Mprime, rnd)
+}
+
+func (vk VerifyingKey) VerifyInternal(M, signature []byte) bool {
+	// Coerce to a RingVector
+	t1 := common.NewRingVector(k)
+	for i := range k {
+		for j := range 256 {
+			t1[i][j] = vk.t1[i][j]
+		}
+	}
+	return common.VerifyInternal(k, l, β, т, ω, λ, γ1, γ2, vk.ρ[:], t1, M, signature)
 }

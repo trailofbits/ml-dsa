@@ -1,8 +1,23 @@
+// Copyright 2025 Trail of Bits. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// Package common implements the generic underlying algorithms from [NIST FIPS 204].
+//
+// This aux.go file contains the auxiliary internal functions needed to implement ML-DSA.
+//
+// The implementations here have slightly more verbose function prototypes than FIPS-204,
+// due to the need to parametrize the functions based on the actual parameter sets for the
+// ML-DSA algorithm being used. The first parameters to all functions are constants to the
+// specific instantiation of ML-DSA (e.g., k, l, or omega2).
+//
+// [NIST FIPS 204]: https://doi.org/10.6028/NIST.FIPS.204
 package common
 
 import (
 	"errors"
 	"math/bits"
+	"slices"
 
 	"golang.org/x/crypto/sha3"
 )
@@ -39,6 +54,7 @@ func BitsToInteger(y []byte, a int) uint32 {
 	return x
 }
 
+// Variants of Algorithm 11
 func IntegerToBytes(x uint32, a int) []byte {
 	xp := x
 	y := make([]byte, a)
@@ -70,7 +86,7 @@ func BitsToBytes(y []byte) []byte {
 // Input: array of bytes
 // Output: array of bits (but also a []byte type)
 func BytesToBits(z []byte) []byte {
-	zprime := z[:]
+	zprime := slices.Clone(z)
 	len := len(z)
 	y := make([]byte, len<<3)
 	for i := range len {
@@ -115,8 +131,11 @@ func CoeffFromHalfByte(eta int, b byte) (RingCoeff, error) {
 func SimpleBitPack(w RingElement, b uint32) []byte {
 	var bitlen int = bits.Len32(b)
 	var z []byte
+	q2 := uint32(q >> 1)
 	for i := range 256 {
-		suffix := Uint32ToBits(uint32(w[i]), bitlen)
+		wi := uint32(w[i])
+		wi -= -((q2 - wi) >> 31) & q
+		suffix := Uint32ToBits(wi, bitlen)
 		z = append(z, suffix[0:bitlen]...)
 	}
 	return BitsToBytes(z)
@@ -130,10 +149,7 @@ func BitPack(w RingElement, a, b uint32) []byte {
 		var diff uint32
 		wi := uint32(w[i])
 		diff = b - wi
-		// TODO: Figure out why this behavior differs when a != b
-		if a == b {
-			diff += -(diff >> 31) & q
-		}
+		diff += -(diff >> 31) & q
 		bits := Uint32ToBits(diff, bitlen)
 		z = append(z, bits[0:bitlen]...)
 	}
@@ -143,9 +159,8 @@ func BitPack(w RingElement, a, b uint32) []byte {
 }
 
 // Algorithm 18
-// As of 2025-02-26, I suspect this has bugs
-func SimpleBitUnpack(v []byte, b int16) (w RingElement) {
-	c := bits.Len16(uint16(b))
+func SimpleBitUnpack(v []byte, b uint32) (w RingElement) {
+	c := bits.Len32(b)
 	z := BytesToBits(v)
 	for i := range 256 {
 		start := i * c
@@ -157,26 +172,16 @@ func SimpleBitUnpack(v []byte, b int16) (w RingElement) {
 }
 
 // Algorithm 19
-// As of 2025-02-26, I suspect this has bugs
 func BitUnpack(v []byte, a, b uint32) (w RingElement) {
-	c := bits.Len16(uint16(a + b))
+	c := bits.Len32(a + b)
 	z := BytesToBits(v)
 	for i := range 256 {
 		start := i * c
-		end := start + c
-		bits := BitsToInteger(z[start:end], c)
-		w[i] = CoeffReduceOnce(b - bits)
-	}
-	return w
-}
-func BitUnpack32(v []byte, a, b uint32) (w RingElement) {
-	c := bits.Len16(uint16(a + b))
-	z := BytesToBits(v)
-	for i := range 256 {
-		start := i * c
-		end := start + c
-		bits := BitsToInteger(z[start:end], c)
-		w[i] = CoeffReduceOnce(b - bits)
+		stop := start + c
+		bits := BitsToInteger(z[start:stop], c)
+		diff := b - bits
+		diff += (diff >> 31) * q
+		w[i] = CoeffReduceOnce(diff)
 	}
 	return w
 }
@@ -196,7 +201,7 @@ func HintBitPack(k, omega uint8, h RingVector) []byte {
 			swap := uint8(((h[i][j] - 1) >> 15) & 1)
 			mask := byte(-swap)
 			jb := byte(j)
-			y[index] = (jb & mask) ^ (y[index] & ^mask)
+			y[index] = (jb & ^mask) ^ (y[index] & mask)
 			index += 1 - swap
 		}
 		y[omega+i] = byte(index)
@@ -205,18 +210,19 @@ func HintBitPack(k, omega uint8, h RingVector) []byte {
 }
 
 // Algorithm 21
+// This is used by signature verification, which does not need to be constant-time
 func HintBitUnpack(k, omega uint8, y []byte) (RingVector, error) {
 	h := NewRingVector(k)
 	index := byte(0)
 	for i := range k {
 		if y[omega+i] < index || y[omega+i] > omega {
-			return nil, errors.New("malformed input: 201")
+			return nil, errors.New("malformed input")
 		}
 		first := index
 		for index < y[omega+i] {
 			if index > first {
 				if y[index-1] >= y[index] {
-					return nil, errors.New("malformed input: 207")
+					return nil, errors.New("malformed input")
 				}
 			}
 			yidx := y[index]
@@ -271,21 +277,13 @@ func SKEncode(k, l, eta uint8, rho, K, tr []byte, s1, s2, t0 RingVector) []byte 
 		packed := BitPack(s2[i], uint32(eta), uint32(eta))
 		sk = append(sk, packed[:]...)
 	}
-	// print("\n")
+
 	max := uint32(1 << (d - 1))
 	min := max - 1
 	for i := range k {
 		packed := BitPack(t0[i], min, max)
-		/*
-			print("\n")
-			for x := range 256 {
-				fmt.Printf("%x, ", t0[i][x])
-			}
-			print("\npacked:", hex.EncodeToString(packed), "\n")
-		*/
 		sk = append(sk, packed[:]...)
 	}
-	// print("\n")
 	return sk
 }
 
@@ -322,26 +320,26 @@ func SigEncode(k, l, omega uint8, gamma1 uint32, c []byte, z, h RingVector) []by
 	}
 	packed := HintBitPack(k, omega, h)
 	sigma = append(sigma, packed...)
-	return sigma
+	return sigma[:]
 }
 
 // Algorithm 27
 func SigDecode(k, l, omega uint8, lambda uint16, gamma1 uint32, sig []byte) ([]byte, RingVector, RingVector, error) {
+	sigma := slices.Clone(sig)
 	z := NewRingVector(k)
 	bitlen := bits.Len32(gamma1 - 1)
 
 	length := uint32(lambda >> 2)
-	c, sig := sig[0:length], sig[length:]
+	c, sigma := sigma[0:length], sigma[length:]
 
 	length = uint32((1 + bitlen) << 5)
-	x, sig := sig[0:length], sig[length:]
-
-	length = uint32(omega + k)
-	y := sig[0:length]
-
+	start := uint32(0)
 	for i := range l {
-		z[i] = BitUnpack32(x[i:i], uint32(gamma1-1), uint32(gamma1))
+		x := sigma[start:]
+		start += length
+		z[i] = BitUnpack(x[:], uint32(gamma1-1), uint32(gamma1))
 	}
+	y := sigma[start:]
 	h, err := HintBitUnpack(k, omega, y)
 	if err != nil {
 		return nil, nil, nil, err
@@ -352,7 +350,9 @@ func SigDecode(k, l, omega uint8, lambda uint16, gamma1 uint32, sig []byte) ([]b
 // Algorithm 28
 func W1Encode(k uint8, gamma2 uint32, w1 RingVector) []byte {
 	var w []byte
-	div := (q-1)/(2*gamma2) - 1
+	div := (q-1)/(gamma2<<1) - 1
+	// div: gamma2 == (q-1/88) -> 43
+	// div: gamma2 == (q-1/32) -> 15
 	for i := range k {
 		packed := SimpleBitPack(w1[i], div)
 		w = append(w, packed...)
@@ -379,7 +379,10 @@ func SampleInBall(tau uint8, seed []byte) (c RingElement) {
 		}
 		j0 := int16(j[0])
 		c[i] = c[j0]
-		c[j0] = RingCoeff(1 - (int16(h[i+tau16-256]) << 1)) // c_j <- (-1)^h[i+tau-256]
+		// Swap between 1 and -1 without side-channels
+		diff := uint32(1) - uint32(h[i+tau16-256])<<1
+		diff += -(diff >> 31) & q
+		c[j0] = CoeffReduceOnce(diff) // c_j <- (-1)^h[i+tau-256]
 	}
 	return c
 }
@@ -438,22 +441,11 @@ func ExpandA(k, l uint8, rho []byte) NttMatrix {
 	return Ahat
 }
 
-func packUint16(x uint16) []byte {
+// Pack a uint16 as a []byte of length 2, in little-endian order
+func PackUint16(x uint16) []byte {
 	b := make([]byte, 2)
 	b[0] = byte(x & 0xff)
 	b[1] = byte(x >> 8)
-	return b
-}
-func packUint64(x uint64) []byte {
-	b := make([]byte, 8)
-	b[0] = byte(x & 0xff)
-	b[1] = byte((x >> 8) & 0xff)
-	b[2] = byte((x >> 16) & 0xff)
-	b[3] = byte((x >> 24) & 0xff)
-	b[4] = byte((x >> 32) & 0xff)
-	b[5] = byte((x >> 40) & 0xff)
-	b[6] = byte((x >> 48) & 0xff)
-	b[7] = byte((x >> 56) & 0xff)
 	return b
 }
 
@@ -462,12 +454,12 @@ func ExpandS(k, l uint8, eta int, rho []byte) (RingVector, RingVector) {
 	s1 := NewRingVector(l)
 	s2 := NewRingVector(k)
 	for r := range l {
-		r_le := packUint16(uint16(r))
+		r_le := PackUint16(uint16(r))
 		packed := append(rho, r_le...)
 		s1[r] = RejBoundedPoly(eta, packed[:])
 	}
 	for r := range k {
-		r_le := packUint16(uint16(r) + uint16(l))
+		r_le := PackUint16(uint16(r) + uint16(l))
 		packed := append(rho, r_le...)
 		s2[r] = RejBoundedPoly(eta, packed[:])
 	}
@@ -484,14 +476,17 @@ func H(data []byte, length uint32) []byte {
 }
 
 // Algorithm 34
-func ExpandMask(l uint8, gamma1 uint32, rho []byte, mu uint64) RingVector {
+func ExpandMask(l uint8, gamma1 uint32, rho []byte, mu uint16) RingVector {
 	y := NewRingVector(l)
 	c := uint32(1 + bits.Len32(gamma1-1))
 	for r := range l {
-		as16 := packUint64(uint64(r) + mu)
+		// rho' <- rho || IntegerToBytes(mu + r, 2)
+		as16 := PackUint16(uint16(r) + mu)
 		packed := append(rho, as16...)
+		// v <- H(rho', 32c)
 		v := H(packed, c<<5)
-		y[r] = BitUnpack32(v, uint32(gamma1-1), uint32(gamma1))
+		// y[r] = BitUnpack(v, gamma1 - 1, gamma1)
+		y[r] = BitUnpack(v, uint32(gamma1-1), uint32(gamma1))
 	}
 	return y
 }
@@ -502,7 +497,8 @@ func Power2Round(r uint32) (uint32, uint32) {
 	a1 := (r + shift) >> d
 	a0 := (r - (a1 << d))
 	// If we underflowed, let's mask out the relevant bits
-	a0 &= (1 << d) - 1
+	a0 += -(a0 >> 31) & q
+	// a0 &= (1 << d) - 1
 	return a1, a0
 }
 
@@ -510,18 +506,43 @@ func Power2Round(r uint32) (uint32, uint32) {
 func Decompose(gamma2 uint32, r uint32) (uint32, uint32) {
 	return DecomposeVarTime(gamma2, r)
 }
+
+// This is the straightforward algorithm. It is not constant-time.
 func DecomposeVarTime(gamma2 uint32, r uint32) (uint32, uint32) {
 	m := gamma2 << 1
-	// rpos <- r mod q
-	rpos := uint32(r % q)
-	// r0 <- r+ mod 2*gamma2
-	r0 := rpos % m
-	if rpos-r0 == q-1 {
-		return uint32(0), uint32(r0 - 1)
+	r_plus := r % q
+	r0 := ModPlusMinus(r, m)
+	diff := r_plus - r0
+	diff += q & -(diff >> 31)
+	if diff == q-1 {
+		return uint32(0), r0 - 1
 	} else {
-		r1 := (rpos - r0) / m
-		return uint32(r1), uint32(r0)
+		r1 := diff / m
+		return r1 % q, r0 % q
 	}
+}
+
+// This is only really used for Decompose().
+// x in [0, m/2) -> x
+// x in [m/2, m) -> y - m/2
+// TODO, make constant-time
+func ModPlusMinus(x uint32, m uint32) uint32 {
+	halfm := m >> 1
+	y := x % m // Reduce x mod m
+	if y > halfm {
+		return q - m + y
+	}
+	return y
+	/*
+		// Check if y >= halfm
+		// diff := ^((halfm - y) >> 31) & 1 // diff = 1 if y < halfm, 0 otherwise
+		diff := (halfm - y) >> 31 // diff = 1 if y < halfm, 0 otherwise
+		mask := -diff             // mask = 0 if y >= halfm, -1 otherwise
+
+		// If y >= halfm, it needs to wrap around to negative values (q-m)
+		y = (mask & (q - y)) ^ (^mask & y)
+		return y
+	*/
 }
 
 /*
@@ -557,6 +578,7 @@ func DecomposeCT(gamma2 uint32, r int32) (int32, int32) {
 	// We need r0 := r % m
 	// r0 := rpos % (gamma2 << 1)
 	// tmp := (uint64(rpos) * bmod) >> 36
+	// r0 := ModPlusMinus(rpos, m)
 	r0 := uint32(barretReduce(uint64(rpos), bmod, uint64(m), uint8(36)))
 	// r0 := uint32(uint64(rpos) - tmp*uint64(m))
 	// r0 is between 0 and 2m, we need to conditionally subtract it
@@ -605,26 +627,98 @@ func HighBits(gamma2 uint32, r uint32) uint32 {
 	return r1
 }
 
+// Helper function for calling HighBits on a RingElement
+func HighBitsElement(gamma2 uint32, e RingElement) RingElement {
+	x := NewRingElement()
+	for i := range 256 {
+		r1, _ := Decompose(gamma2, uint32(e[i]))
+		x[i] = RingCoeff(r1)
+	}
+	return x
+}
+
+// Helper function for calling HighBits on a RingVector
+func HighBitsVec(k uint8, gamma2 uint32, r RingVector) RingVector {
+	v := NewRingVector(k)
+	for i := range k {
+		v[i] = HighBitsElement(gamma2, r[i])
+	}
+	return v
+}
+
 // Algorithm 38
 func LowBits(gamma2 uint32, r uint32) uint32 {
 	_, r0 := Decompose(gamma2, r)
 	return r0
 }
 
+// Helper function for calling LowBits on a RingElement
+func LowBitsElement(gamma2 uint32, e RingElement) RingElement {
+	x := NewRingElement()
+	for i := range 256 {
+		_, r0 := Decompose(gamma2, uint32(e[i]))
+		x[i] = CoeffReduceOnce(r0)
+	}
+	return x
+}
+
+// Helper function for calling LowBits on a RingVector
+func LowBitsVec(k uint8, gamma2 uint32, r RingVector) RingVector {
+	v := NewRingVector(k)
+	for i := range k {
+		v[i] = LowBitsElement(gamma2, r[i])
+	}
+	return v
+}
+
 // Algorithm 39
 func MakeHint(gamma2 uint32, z, r FieldElement) uint8 {
 	r1 := HighBits(gamma2, uint32(r))
-	v1 := HighBits(gamma2, uint32(r+z))
+	v1 := HighBits(gamma2, uint32(r+z)%q)
 	// return (r1 ^ v1) != 0
 	// r1 == v1 -> return 0
 	// r1 != v1 -> return 1
 	return uint8(^((r1^v1)-1)>>31) & 1
 }
 
+// Helper function for calling MakeHint on a RingElement
+func MakeHintRingElement(gamma2 uint32, z, r RingElement) []uint8 {
+	hints := make([]uint8, 256)
+	for j := range 256 {
+		zj := FieldReduceOnce(uint32(z[j]))
+		rj := FieldReduceOnce(uint32(r[j]))
+		hints[j] = MakeHint(gamma2, zj, rj)
+	}
+	return hints
+}
+
+// Helper function for calling MakeHint on a RingVector
+func MakeHintRingVec(k uint8, gamma2 uint32, z, r RingVector) [][]uint8 {
+	hints := make([][]uint8, k)
+	for i := range k {
+		hints[i] = MakeHintRingElement(gamma2, z[i], r[i])
+	}
+	return hints
+}
+
+// This is used to sum up the number of 1's in a Hint
+func CountOnesHint(k uint8, w [][]uint8) uint32 {
+	ones := uint32(0)
+	for i := range k {
+		for j := range 256 {
+			wij := uint32(w[i][j])
+			ones += wij & 1
+		}
+	}
+	return ones
+}
+
 // Algorithm 40
+// This is designed to be constant-time
 func UseHint(gamma2 uint32, h uint8, r FieldElement) FieldElement {
 	// This is a constant value. We can make this a look-up table if we want to avoid the division.
 	m := (q - 1) / (gamma2 << 1)
+	q2 := uint32(q >> 1)
 	r1, r0 := Decompose(gamma2, uint32(r))
 
 	// We rewrote some conditional logic here to be constant-time
@@ -650,23 +744,42 @@ func UseHint(gamma2 uint32, h uint8, r FieldElement) FieldElement {
 	// | 0 |    1   |    0   |       r1  |
 
 	// r0sign is the sign bit of r0-1
-	r0sign := uint32(r0-1) >> 31
-	// fmt.Printf("r = %d -> (r0: %d, r1: %d); r0sign = %d\n", r, r0, r1, r0sign)
+	r0sign := uint32(q2-r0) >> 31
 
 	// -h becomes -1 or 0, which is then used as a mask for bitwise AND
+	mask := -uint32(h)
 	// (1 - (r0sign << 1)) becomes 1 if r0sign == 0. It becomes -1 if r0sign == 1.
 	// This works because 1 - 0 == 1, but 1 - 2 == -1, and (r0sign << 1) is either 0 or 2.
-	adjust := -uint32(h) & uint32(1-(r0sign<<1))
+	adjust := mask & uint32(1-(r0sign<<1))
 
 	// Now that we have an adjustment value in the range (-1, 0, +1), add it to r1.
 	unreduced := r1 + adjust
 
 	// The final step is to reduce the result mod m:
-	x := uint32(unreduced) - m
+	x := uint32(unreduced)
 	x += -(x >> 31) & m
 
 	// We return the result as a fieldElement:
 	return FieldElement(x)
+}
+
+// Helper function for calling UseHint on a RingElement
+func UseHintRingElement(gamma2 uint32, h []uint8, r RingElement) RingElement {
+	r1 := NewRingElement()
+	for j := range 256 {
+		rj := FieldReduceOnce(uint32(r[j]))
+		r1[j] = RingCoeff(UseHint(gamma2, h[j], rj))
+	}
+	return r1
+}
+
+// Helper function for calling UseHint on a RingVector
+func UseHintRingVector(k uint8, gamma2 uint32, h [][]uint8, rv RingVector) RingVector {
+	rv1 := NewRingVector(k)
+	for i := range k {
+		rv1[i] = UseHintRingElement(gamma2, h[i], rv[i])
+	}
+	return rv1
 }
 
 // Precomputed; only [1..255] are used:
@@ -766,6 +879,14 @@ func NTTAdd(a, b NttElement) (c NttElement) {
 	return c
 }
 
+// This is implied by Algorithm 44
+func NTTSub(a, b NttElement) (c NttElement) {
+	for i := range c {
+		c[i] = FieldSub(a[i], b[i])
+	}
+	return c
+}
+
 // Algorithm 45
 func NTTMul(a, b NttElement) (c NttElement) {
 	for i := range c {
@@ -781,6 +902,15 @@ func AddVectorNTT(l uint8, v, w NttVector) NttVector {
 		u[i] = NTTAdd(v[i], w[i])
 	}
 	return u
+}
+
+// This is implied by Algorithm 46, but needed for Verify_internal()
+func SubVectorNTT(k uint8, a, b NttVector) NttVector {
+	c := NewNttVector(k)
+	for i := range k {
+		c[i] = NTTSub(a[i], b[i])
+	}
+	return c
 }
 
 // Algorithm 47
@@ -801,4 +931,21 @@ func MatrixVectorNTT(k, l uint8, M_hat NttMatrix, v_hat NttVector) NttVector {
 		}
 	}
 	return w
+}
+
+// Calculate the infinity norm.
+//
+// This is described in FIPS-204 as algebraic notation, rather than code.
+func InfinityNorm(x uint32) uint32 {
+	q2 := uint32(q >> 1)
+	// Get the sign bit of x - q/2, to see if we're dealing with a "negative" number.
+	// We encode (-x) as (q - x) since they are congruent mod q. The only signed ints
+	// we deal with in ML-DSA are in the range [-2^10, 2^10], which is less than q/2.
+	x -= -((q - x) >> 31) & q
+	x += -(x >> 31) & q
+	// put x in [0, q)
+	if x >= q2 {
+		return q - x
+	}
+	return x
 }

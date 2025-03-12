@@ -1,3 +1,10 @@
+// Copyright 2025 Trail of Bits. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// Package common implements the generic underlying algorithms from [NIST FIPS 204].
+//
+// See types.go
 package common
 
 const (
