@@ -79,7 +79,7 @@ func KeyGenInternal(seed [32]byte) (SigningKey, VerifyingKey) {
 	// t = (A * s1) + s2
 	s1hat := common.NttVec(l, s1)
 	multiplied := common.MatrixVectorNTT(k, l, Ahat, s1hat)
-	inverted := common.InvNttVec(l, multiplied)
+	inverted := common.InvNttVec(k, multiplied)
 	t := common.RingVectorAdd(k, inverted, s2)
 
 	// multiplied := nttMul(Ahat, common.NTT(s1))
@@ -91,6 +91,7 @@ func KeyGenInternal(seed [32]byte) (SigningKey, VerifyingKey) {
 	tr := common.H(pke, 64)
 	copy(tr_copy[:], tr[:])
 	for i := range int(k) {
+		t0_copy[i] = common.NewRingElement()
 		t1_copy[i] = common.NewRingElement()
 		for j := range 256 {
 			t1_copy[i][j] = t1[i][j]
@@ -123,7 +124,7 @@ func (sk SigningKey) ExpandedBytesForTesting() []byte {
 	// t = (A * s1) + s2
 	s1hat := common.NttVec(l, s1)
 	multiplied := common.MatrixVectorNTT(k, l, Ahat, s1hat)
-	inverted := common.InvNttVec(l, multiplied)
+	inverted := common.InvNttVec(k, multiplied)
 	t := common.RingVectorAdd(k, inverted, s2)
 
 	// multiplied := nttMul(Ahat, common.NTT(s1))

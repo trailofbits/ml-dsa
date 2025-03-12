@@ -82,7 +82,7 @@ func KeyGenInternal(seed [32]byte) (SigningKey, VerifyingKey) {
 	// t = (A * s1) + s2
 	s1hat := common.NttVec(l, s1)
 	multiplied := common.MatrixVectorNTT(k, l, Ahat, s1hat)
-	inverted := common.InvNttVec(l, multiplied)
+	inverted := common.InvNttVec(k, multiplied)
 	t := common.RingVectorAdd(k, inverted, s2)
 
 	// multiplied := nttMul(Ahat, common.NTT(s1))
@@ -127,7 +127,7 @@ func (sk SigningKey) ExpandedBytesForTesting() []byte {
 	// t = (A * s1) + s2
 	s1hat := common.NttVec(l, s1)
 	multiplied := common.MatrixVectorNTT(k, l, Ahat, s1hat)
-	inverted := common.InvNttVec(l, multiplied)
+	inverted := common.InvNttVec(k, multiplied)
 	t := common.RingVectorAdd(k, inverted, s2)
 
 	// multiplied := nttMul(Ahat, common.NTT(s1))

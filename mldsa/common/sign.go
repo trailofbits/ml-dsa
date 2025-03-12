@@ -47,7 +47,7 @@ func SignInternal(k, l, beta, tau, omega uint8, eta int, lambda uint16, gamma1 u
 	for {
 		fail := false
 		y := ExpandMask(l, gamma1, rhopp, kappa)
-		w := InvNttVec(k, MatrixVectorNTT(k, l, Ahat, NttVec(k, y)))
+		w := InvNttVec(k, MatrixVectorNTT(k, l, Ahat, NttVec(l, y)))
 		w1 := HighBitsVec(k, gamma2, w)
 		w1_encoded := W1Encode(k, gamma2, w1)
 		c_tilde := H(append(mu, w1_encoded...), uint32(lambda>>2))
@@ -58,7 +58,7 @@ func SignInternal(k, l, beta, tau, omega uint8, eta int, lambda uint16, gamma1 u
 		cs2 := InvNttVec(k, ScalarVectorNTT(k, c_hat, s2hat))
 		z := RingVectorAdd(l, y, cs1)
 		r0 := LowBitsVec(k, gamma2, RingVectorSub(k, w, cs2))
-		z_inf := InfinityNormRingVector(k, z)
+		z_inf := InfinityNormRingVector(l, z)
 		r0_inf := InfinityNormRingVector(k, r0)
 		// return nil, errors.New("Unfinished")
 
@@ -69,7 +69,7 @@ func SignInternal(k, l, beta, tau, omega uint8, eta int, lambda uint16, gamma1 u
 			fail = true
 		}
 		// <<ct0>> <- NTT^-1(c_hat o t0_hat)
-		ct0 := InvNttVec(k, ScalarVectorNTT(l, c_hat, t0hat))
+		ct0 := InvNttVec(k, ScalarVectorNTT(k, c_hat, t0hat))
 		minus_ct0 := NegateRingVector(k, ct0)
 		// w - cs2
 		// w_cs2 := RingVectorSub(k, w, cs2)
