@@ -52,6 +52,8 @@ func TestSignVerifyRandomKeypair(t *testing.T) {
 		panic(err)
 	}
 	assert.True(t, pk.Verify(message, ctx, sig))
+	sig[0] ^= 0xff
+	assert.False(t, pk.Verify(message, ctx, sig))
 }
 
 func TestSignVerifyZeroSeed(t *testing.T) {
