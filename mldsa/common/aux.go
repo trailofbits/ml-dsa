@@ -504,7 +504,29 @@ func Power2Round(r uint32) (uint32, uint32) {
 
 // Algorithm 36
 func Decompose(gamma2 uint32, r uint32) (uint32, uint32) {
-	return DecomposeVarTime(gamma2, r)
+	m := gamma2 << 1
+	_, r_plus := DivConstTime32(r, q)
+	r0 := ModPlusMinus(r, m)
+	diff := r_plus - r0
+	diff += q & -(diff >> 31)
+	// We need to do a constant-time swap to avoid branches
+	// if diff == q-1, mask = 0xffffffff; else, mask = 0
+	q1 := uint32(q - 1)
+	compared := ((diff ^ q1) - 1) >> 31
+	mask := uint32(-compared)
+
+	// r1 := diff / m
+	// r1 %= q
+	// r0 %= q
+	r1, _ := DivConstTime32(diff, m)
+	_, r1 = DivConstTime32(r1, q)
+	_, r0 = DivConstTime32(r0, q)
+
+	r1p := uint32(0)
+	r0p := r0 - 1
+	r0 ^= (r0p ^ r0) & mask
+	r1 ^= (r1p ^ r1) & mask
+	return r1, r0
 }
 
 // This is the straightforward algorithm. It is not constant-time.
