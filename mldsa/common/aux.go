@@ -522,10 +522,7 @@ func DecomposeVarTime(gamma2 uint32, r uint32) (uint32, uint32) {
 	}
 }
 
-// This is only really used for Decompose().
-// x in [0, m/2) -> x
-// x in [m/2, m) -> y - m/2
-// TODO, make constant-time
+// This is only really used for unit testing.
 func ModPlusMinusVarTime(x uint32, m uint32) uint32 {
 	halfm := m >> 1
 	y := x % m // Reduce x mod m
@@ -535,6 +532,9 @@ func ModPlusMinusVarTime(x uint32, m uint32) uint32 {
 	return y
 }
 
+// This is only really used for Decompose().
+// x in [0, m/2) -> x
+// x in [m/2, m) -> y - m/2
 func ModPlusMinus(x uint32, m uint32) uint32 {
 	halfm := m >> 1
 	// y:= x % m
