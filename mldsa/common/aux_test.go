@@ -504,6 +504,7 @@ func TestModPlusMinus(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, common.ModPlusMinusVarTime(tt.r, tt.gamma2<<1))
 			assert.Equal(t, tt.expected, common.ModPlusMinus(tt.r, tt.gamma2<<1))
 		})
 	}
@@ -803,4 +804,32 @@ func TestMakeHintRingVec(t *testing.T) {
 	}
 	actual_h := common.MakeHintRingVec(k, gamma2, z, r)
 	assert.Equal(t, expect_h, actual_h)
+}
+
+func TestDivConstTime32(t *testing.T) {
+	moduli := []uint32{95232, 261888}
+	x := uint32(1000) // number of sequential values to test; originally set to m
+	for _, m := range moduli {
+		for i := range x {
+			y := i % m
+			_, z := common.DivConstTime32(i, m)
+			assert.Equal(t, y, z)
+
+			// Add m to i, expect i
+			_, z = common.DivConstTime32(i+m, m)
+			assert.Equal(t, y, z)
+
+			/*
+				// Try multiples of m
+				for j := range uint32(16) {
+					in := m * (j + 1)
+					_, z = common.DivConstTime32(i+in, m)
+					assert.Equal(t, y, z)
+					if y != z {
+						return
+					}
+				}
+			*/
+		}
+	}
 }

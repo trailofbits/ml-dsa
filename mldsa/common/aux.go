@@ -526,23 +526,71 @@ func DecomposeVarTime(gamma2 uint32, r uint32) (uint32, uint32) {
 // x in [0, m/2) -> x
 // x in [m/2, m) -> y - m/2
 // TODO, make constant-time
-func ModPlusMinus(x uint32, m uint32) uint32 {
+func ModPlusMinusVarTime(x uint32, m uint32) uint32 {
 	halfm := m >> 1
 	y := x % m // Reduce x mod m
 	if y > halfm {
 		return q - m + y
 	}
 	return y
-	/*
-		// Check if y >= halfm
-		// diff := ^((halfm - y) >> 31) & 1 // diff = 1 if y < halfm, 0 otherwise
-		diff := (halfm - y) >> 31 // diff = 1 if y < halfm, 0 otherwise
-		mask := -diff             // mask = 0 if y >= halfm, -1 otherwise
+}
 
-		// If y >= halfm, it needs to wrap around to negative values (q-m)
-		y = (mask & (q - y)) ^ (^mask & y)
-		return y
-	*/
+func ModPlusMinus(x uint32, m uint32) uint32 {
+	halfm := m >> 1
+	// y:= x % m
+	_, y := DivConstTime32(x, m)
+	// if y > halfm, b = 1; else, b = 0
+	_, b := bits.Sub32(halfm, y, 0)
+	// mask = 0xffffffff if y > halfm, 0 otherwise
+	mask := uint32(-(b))
+	// y' = q - m + y
+	yp := q - m + y
+	// return constant-time swap
+	return yp ^ ((yp ^ y) & ^mask)
+}
+
+// Modification of https://en.wikipedia.org/wiki/Division_algorithm#Integer_division_(unsigned)_with_remainder
+// Except with branchless, conditional swaps
+func DivConstTime32(n uint32, d uint32) (uint32, uint32) {
+	quotient := uint32(0)
+	R := uint32(0)
+
+	// We are dealing with 32-bit integers, so we iterate 32 times
+	b := uint32(32)
+	i := b
+	for range b {
+		i--
+		R <<= 1
+
+		// R(0) := N(i)
+		R |= ((n >> i) & 1)
+
+		// swap from Sub32() will look like this:
+		// if remainder > d,  swap == 0
+		// if remainder == d, swap == 0
+		// if remainder < d,  swap == 1
+		Rprime, swap := bits.Sub32(R, d, 0)
+
+		// invert logic of sub32 for conditional swap
+		swap ^= 1
+		/*
+			Desired:
+				if R > D  then swap = 1
+				if R == D then swap = 1
+				if R < D  then swap = 0
+		*/
+
+		// Qprime := Q
+		// Qprime(i) := 1
+		Qprime := quotient
+		Qprime |= (1 << i)
+
+		// Conditional swap:
+		mask := uint32(-swap)
+		R ^= ((Rprime ^ R) & mask)
+		quotient ^= ((Qprime ^ quotient) & mask)
+	}
+	return quotient, R
 }
 
 /*
