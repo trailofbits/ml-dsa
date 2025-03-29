@@ -424,38 +424,16 @@ func TestPower2Round(t *testing.T) {
 	}
 }
 
-/*
-   fn decompose() {
-       for x in 0..MOD {
-           let x = Elem::new(x);
-           let (x1, x0) = x.decompose::<Mod>();
-
-           // The low-order output from decompose() is a mod+- output, optionally minus one.  So
-           // they should be in the closed interval [-gamma2, gamma2].
-           let positive_bound = x0.0 <= MOD / 2;
-           let negative_bound = x0.0 >= BaseField::Q - MOD / 2;
-           assert!(positive_bound || negative_bound);
-
-           // The low-order and high-order outputs should combine to form the input.
-           let xx = (MOD * x1.0 + x0.0) % BaseField::Q;
-           assert_eq!(xx, x.0);
-       }
-   }
-*/
-
 func TestDecomposeExhaustive(t *testing.T) {
-	/*
-		gammas := []uint32{95232, 261888}
-		for _, gamma2 := range gammas {
-			testDcomposeExhausiveGamma2(gamma2)
-		}
-	*/
-	testDecomposeExhausiveGamma2(t, uint32(95232))
+	gammas := []uint32{95232, 261888}
+	for _, gamma2 := range gammas {
+		testDecomposeExhausiveGamma2(t, gamma2)
+	}
 }
 
 func testDecomposeExhausiveGamma2(t *testing.T, gamma2 uint32) {
 	m := gamma2 << 1
-	t1, t0 := common.Decompose(gamma2, 380926)
+	t1, t0 := common.Decompose(gamma2, m*2-2)
 	assert.Equal(t, uint32(q-2), t0)
 	assert.Equal(t, uint32(2), t1)
 
