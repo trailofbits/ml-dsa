@@ -6,7 +6,6 @@ package mldsa44
 import (
 	"crypto/rand"
 	"errors"
-	"fmt"
 
 	"trailofbits.com/ml-dsa/mldsa/common"
 )
@@ -89,9 +88,7 @@ func KeyGenInternal(seed [32]byte) (SigningKey, VerifyingKey) {
 	// multiplied := nttMul(Ahat, common.NTT(s1))
 	// polynomial := inverseNTT(multiplied)
 	// t := ringAdd(polynomial, s2)
-
 	t1, t0 := ringVecPower2Round(t)
-	fmt.Printf("t1[0]: %x\n", common.SimpleBitPack(t1[0], 1023)[0x80:0x90])
 
 	pke := pkEncode(rho, t1[:])
 	tr := common.H(pke, 64)
