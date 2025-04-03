@@ -493,13 +493,13 @@ func ExpandMask(l uint8, gamma1 uint32, rho []byte, mu uint16) RingVector {
 
 // Algorithm 35
 func Power2Round(r uint32) (uint32, uint32) {
-	shift := uint32(1 << (d - 1))
-	a1 := (r + shift) >> d
-	a0 := (r - (a1 << d))
-	// If we underflowed, let's mask out the relevant bits
-	a0 += -(a0 >> 31) & q
-	// a0 &= (1 << d) - 1
-	return a1, a0
+	m := uint32(1 << d)
+	r_plus := uint32(r - q)
+	r_plus += -(r_plus >> 31) & q
+	r0 := ModPlusMinus(r_plus, m)
+	r1 := (r_plus - r0)
+	r1 += -(r1 >> 31) & q
+	return r1 >> d, r0
 }
 
 // Algorithm 36
@@ -533,7 +533,7 @@ func Decompose(gamma2 uint32, r uint32) (uint32, uint32) {
 func DecomposeVarTime(gamma2 uint32, r uint32) (uint32, uint32) {
 	m := gamma2 << 1
 	r_plus := r % q
-	r0 := ModPlusMinus(r, m)
+	r0 := ModPlusMinusVarTime(r, m)
 	diff := r_plus - r0
 	diff += q & -(diff >> 31)
 	if diff == q-1 {
@@ -738,6 +738,7 @@ func UseHint(gamma2 uint32, h uint8, r FieldElement) FieldElement {
 	// | 0 |    1   |    0   |       r1  |
 
 	// r0sign is the sign bit of r0-1
+	// (q/2 - r0) is "negative" if r0 > q/2
 	r0sign := uint32(q2-r0) >> 31
 
 	// -h becomes -1 or 0, which is then used as a mask for bitwise AND
