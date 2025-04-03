@@ -6,6 +6,7 @@ package mldsa44
 import (
 	"crypto/rand"
 	"errors"
+	"fmt"
 
 	"trailofbits.com/ml-dsa/mldsa/common"
 )
@@ -88,7 +89,9 @@ func KeyGenInternal(seed [32]byte) (SigningKey, VerifyingKey) {
 	// multiplied := nttMul(Ahat, common.NTT(s1))
 	// polynomial := inverseNTT(multiplied)
 	// t := ringAdd(polynomial, s2)
+
 	t1, t0 := ringVecPower2Round(t)
+	fmt.Printf("t1[0]: %x\n", common.SimpleBitPack(t1[0], 1023)[0x80:0x90])
 
 	pke := pkEncode(rho, t1[:])
 	tr := common.H(pke, 64)
@@ -159,7 +162,7 @@ func (sk SigningKey) Sign(message, ctx []byte) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	Mprime := FormatMessageForSigning(message, ctx)
+	Mprime := common.FormatMessageForSigning(message, ctx)
 	sigma, err := sk.SignInternal(Mprime, rnd)
 	if err != nil {
 		return nil, err
@@ -171,16 +174,8 @@ func (vk VerifyingKey) Verify(message, ctx, signature []byte) bool {
 	if len(ctx) > 255 {
 		return false
 	}
-	Mprime := FormatMessageForSigning(message, ctx)
+	Mprime := common.FormatMessageForSigning(message, ctx)
 	return vk.VerifyInternal(Mprime, signature)
-}
-
-func FormatMessageForSigning(message, ctx []byte) []byte {
-	Mprime := common.BytesToBits(common.IntegerToBytes(0, 1))
-	Mprime = append(Mprime, common.IntegerToBytes(uint32(len(ctx)), 1)...)
-	Mprime = append(Mprime, ctx...)
-	Mprime = append(Mprime, message...)
-	return Mprime
 }
 
 func (sk SigningKey) SignInternal(Mprime, rnd []byte) ([]byte, error) {

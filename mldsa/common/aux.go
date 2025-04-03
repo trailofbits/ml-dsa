@@ -943,3 +943,12 @@ func InfinityNorm(x uint32) uint32 {
 	}
 	return x
 }
+
+// Format the message for signature generation or signature verification.
+func FormatMessageForSigning(message, ctx []byte) []byte {
+	bytes := IntegerToBytes(0, 1)
+	bytes = append(bytes, IntegerToBytes(uint32(len(ctx)), 1)...)
+	bytes = append(bytes, ctx...)
+	bits := BytesToBits(bytes)
+	return append(bits, message...)
+}

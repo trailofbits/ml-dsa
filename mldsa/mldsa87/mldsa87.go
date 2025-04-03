@@ -155,7 +155,7 @@ func (sk SigningKey) Sign(message, ctx []byte) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	Mprime := FormatMessageForSigning(message, ctx)
+	Mprime := common.FormatMessageForSigning(message, ctx)
 	sigma, err := sk.SignInternal(Mprime, rnd)
 	if err != nil {
 		return nil, err
@@ -167,16 +167,8 @@ func (vk VerifyingKey) Verify(message, ctx, signature []byte) bool {
 	if len(ctx) > 255 {
 		return false
 	}
-	Mprime := FormatMessageForSigning(message, ctx)
+	Mprime := common.FormatMessageForSigning(message, ctx)
 	return vk.VerifyInternal(Mprime, signature)
-}
-
-func FormatMessageForSigning(message, ctx []byte) []byte {
-	Mprime := common.BytesToBits(common.IntegerToBytes(0, 1))
-	Mprime = append(Mprime, common.IntegerToBytes(uint32(len(ctx)), 1)...)
-	Mprime = append(Mprime, ctx...)
-	Mprime = append(Mprime, message...)
-	return Mprime
 }
 
 func (sk SigningKey) SignInternal(Mprime, rnd []byte) ([]byte, error) {
