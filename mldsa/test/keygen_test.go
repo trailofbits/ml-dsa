@@ -33,14 +33,9 @@ func TestKeyGeneration(t *testing.T) {
 		}
 		// Run key generation tests
 		for _, test := range testGroup.Tests {
-			if test.Id != 13 {
-				// TODO: Skip all but the first failing test case
-				continue
-			}
-			_, vk := generateKeyPair(test.Seed)
+			sk, vk := generateKeyPair(test.Seed)
 			// Verify correctness via serialization
-			// TODO: Skip signing key comparison for now
-			// assert.Equal(t, test.SK.Bytes(), sk.ExpandedBytesForTesting(), "signing keys differ in test case %d", test.Id)
+			assert.Equal(t, test.SK.Bytes(), sk.ExpandedBytesForTesting(), "signing keys differ in test case %d", test.Id)
 			assert.Equal(t, test.VK.Bytes(), vk.Bytes(), "verifying keys differ in test case %d", test.Id)
 		}
 	}
