@@ -1,10 +1,6 @@
 package mldsa_test
 
 import (
-	"encoding/hex"
-	"encoding/json"
-	"fmt"
-	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -14,7 +10,7 @@ import (
 )
 
 func TestKeyGeneration(t *testing.T) {
-	testVectors, err := parseTestVectorFile("keygen_test.json")
+	testVectors, err := ParseTestVectorFile[keyGenTestCase]("keygen_test.json")
 	if err != nil {
 		t.Fatalf("failed to parse test vector file: %v", err)
 	}
@@ -43,67 +39,23 @@ func TestKeyGeneration(t *testing.T) {
 
 // keyGenFunc defines the function signature for the internal, seed-based key
 // generation functions
-type keyGenFunc func(seed seed) (SigningKey, VerifyingKey)
+type keyGenFunc func(seed Seed) (SigningKey, VerifyingKey)
 
-func generateKeyPair44(seed seed) (SigningKey, VerifyingKey) {
+func generateKeyPair44(seed Seed) (SigningKey, VerifyingKey) {
 	return mldsa44.KeyGenInternal(seed)
 }
 
-func generateKeyPair65(seed seed) (SigningKey, VerifyingKey) {
+func generateKeyPair65(seed Seed) (SigningKey, VerifyingKey) {
 	return mldsa65.KeyGenInternal(seed)
 }
 
-func generateKeyPair87(seed seed) (SigningKey, VerifyingKey) {
+func generateKeyPair87(seed Seed) (SigningKey, VerifyingKey) {
 	return mldsa87.KeyGenInternal(seed)
 }
 
-type testVectorFile struct {
-	TestGroups []testGroup `json:"testGroups"`
-}
-
-func parseTestVectorFile(path string) (testVectorFile, error) {
-	file, err := os.Open(path)
-	if err != nil {
-		return testVectorFile{}, err
-	}
-	defer file.Close()
-
-	var testVectors testVectorFile
-	decoder := json.NewDecoder(file)
-	if err := decoder.Decode(&testVectors); err != nil {
-		return testVectorFile{}, err
-	}
-
-	return testVectors, nil
-}
-
-type testGroup struct {
-	Id           int          `json:"tgId"`
-	ParameterSet ParameterSet `json:"parameterSet"`
-	Tests        []testCase   `json:"tests"`
-}
-
-type testCase struct {
+type keyGenTestCase struct {
 	Id   int      `json:"tcId"`
-	Seed seed     `json:"seed"`
+	Seed Seed     `json:"seed"`
 	SK   HexBytes `json:"sk"`
 	VK   HexBytes `json:"pk"`
-}
-
-type seed [32]byte
-
-func (s *seed) UnmarshalJSON(data []byte) error {
-	var hexString string
-	if err := json.Unmarshal(data, &hexString); err != nil {
-		return err
-	}
-	bytes, err := hex.DecodeString(hexString)
-	if err != nil {
-		return err
-	}
-	if len(bytes) != 32 {
-		return fmt.Errorf("invalid length for HexArray: expected 32 bytes, got %d", len(bytes))
-	}
-	copy(s[:], bytes)
-	return nil
 }

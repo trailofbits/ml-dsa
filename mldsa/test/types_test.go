@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"os"
 )
 
 const (
@@ -53,6 +54,24 @@ func (h *HexBytes) Bytes() []byte {
 	return *h
 }
 
+type Seed [32]byte
+
+func (s *Seed) UnmarshalJSON(data []byte) error {
+	var hexString string
+	if err := json.Unmarshal(data, &hexString); err != nil {
+		return err
+	}
+	bytes, err := hex.DecodeString(hexString)
+	if err != nil {
+		return err
+	}
+	if len(bytes) != 32 {
+		return fmt.Errorf("invalid length for HexArray: expected 32 bytes, got %d", len(bytes))
+	}
+	copy(s[:], bytes)
+	return nil
+}
+
 // SigningKey defines the tested interface for signing keys in ML-DSA
 type SigningKey interface {
 	ExpandedBytesForTesting() []byte
@@ -63,4 +82,31 @@ type SigningKey interface {
 type VerifyingKey interface {
 	Bytes() []byte
 	Verify(message, ctx, signature []byte) bool
+}
+
+// TestVectorFile represents the structure of the test vector file
+type TestVectorFile[TestCase any] struct {
+	TestGroups []*TestGroup[TestCase] `json:"testGroups"`
+}
+
+func ParseTestVectorFile[TestCase any](path string) (TestVectorFile[TestCase], error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return TestVectorFile[TestCase]{}, err
+	}
+	defer file.Close()
+
+	var testVectors TestVectorFile[TestCase]
+	decoder := json.NewDecoder(file)
+	if err := decoder.Decode(&testVectors); err != nil {
+		return TestVectorFile[TestCase]{}, err
+	}
+
+	return testVectors, nil
+}
+
+type TestGroup[TestCase any] struct {
+	Id           int          `json:"tgId"`
+	ParameterSet ParameterSet `json:"parameterSet"`
+	Tests        []TestCase   `json:"tests"`
 }
