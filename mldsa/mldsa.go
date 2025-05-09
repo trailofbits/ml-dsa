@@ -11,15 +11,6 @@
 // [NIST FIPS 204]: https://doi.org/10.6028/NIST.FIPS.204
 package mldsa
 
-/*
-import (
-	"trailofbits.com/ml-dsa/mldsa/common"
-	"trailofbits.com/ml-dsa/mldsa/mldsa44"
-	"trailofbits.com/ml-dsa/mldsa/mldsa65"
-	"trailofbits.com/ml-dsa/mldsa/mldsa87"
-)
-*/
-
 const (
 	// We use seeds instead of expanded private keys
 	SeedSize = 32
@@ -42,3 +33,17 @@ const (
 	// Signature size (bytes) for ML-DSA-87
 	SignatureSize87 = 4627
 )
+
+type SigningKey struct {
+	seed [32]byte // ξ from the specification
+	ρ    [32]byte // Rho is the public seed
+	K    [32]byte
+	tr   [64]byte
+	t0   [k]common.RingElement
+	t1   [k]common.RingElement
+}
+
+type VerifyingKey struct {
+	ρ  [32]byte // Rho is the public seed
+	t1 [k]common.RingElement
+}
