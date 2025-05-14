@@ -8,6 +8,7 @@ const Zeta = 1753
 const D = 13
 
 type Cfg struct {
+	Name      string
 	Tau       uint16
 	Lambda    uint16
 	LogGamma1 uint8
@@ -23,6 +24,7 @@ type Cfg struct {
 }
 
 var MLDSA44Cfg = &Cfg{
+	Name:      "MLDSA-44",
 	Tau:       39,
 	Lambda:    128,
 	LogGamma1: 17,
@@ -38,6 +40,7 @@ var MLDSA44Cfg = &Cfg{
 }
 
 var MLDSA65Cfg = &Cfg{
+	Name:      "MLDSA-65",
 	Tau:       49,
 	Lambda:    192,
 	LogGamma1: 19,
@@ -53,6 +56,7 @@ var MLDSA65Cfg = &Cfg{
 }
 
 var MLDSA87Cfg = &Cfg{
+	Name:      "MLDSA-87",
 	Tau:       60,
 	Lambda:    256,
 	LogGamma1: 19,

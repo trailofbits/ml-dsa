@@ -82,7 +82,7 @@ func SigEncode(cfg *params.Cfg, c []byte, z []ring.Rq, h []ring.R2) []byte {
 
 // Algorithm 27
 func SigDecode(cfg *params.Cfg, sig []byte) ([]byte, []ring.Rz, []ring.R2, error) {
-	z := make([]ring.Rz, cfg.K)
+	z := make([]ring.Rz, cfg.L)
 
 	length := cfg.Lambda / 4
 	c, sigma := sig[:length], sig[length:]

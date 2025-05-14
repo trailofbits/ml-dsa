@@ -9,19 +9,25 @@ import (
 	"trailofbits.com/ml-dsa/mldsa/internal/params"
 )
 
+var ps = []*params.Cfg{params.MLDSA44Cfg, params.MLDSA65Cfg, params.MLDSA87Cfg}
+
 func TestSignVerifyRandomKeypair(t *testing.T) {
-	sk, _, _ := GenerateKeyPair(params.MLDSA44Cfg, rand.Reader)
+	for _, p := range ps {
+		t.Run(p.Name, func(t *testing.T) {
+			sk, _, _ := GenerateKeyPair(p, rand.Reader)
 
-	message, _ := hex.DecodeString("48656c6c6f20776f726c64")
+			message, _ := hex.DecodeString("48656c6c6f20776f726c64")
 
-	ctx := []byte{}
-	sig, err := sk.Sign(message, ctx, rand.Reader)
-	assert.NoError(t, err)
-	pk := sk.Public()
+			ctx := []byte{}
+			sig, err := sk.Sign(message, ctx, rand.Reader)
+			assert.NoError(t, err)
+			pk := sk.Public()
 
-	assert.True(t, pk.Verify(message, ctx, sig))
-	sig[0] ^= 0xff
-	assert.False(t, pk.Verify(message, ctx, sig))
+			assert.True(t, pk.Verify(message, ctx, sig))
+			sig[0] ^= 0xff
+			assert.False(t, pk.Verify(message, ctx, sig))
+		})
+	}
 }
 
 func TestSignVerifyZeroSeed(t *testing.T) {
