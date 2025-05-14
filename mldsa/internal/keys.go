@@ -1,10 +1,11 @@
-package mldsa
+package internal
 
 import (
-	"crypto/rand"
 	"crypto/subtle"
 	"errors"
+	"fmt"
 	"io"
+	"slices"
 
 	"golang.org/x/crypto/sha3"
 	"trailofbits.com/ml-dsa/mldsa/internal/params"
@@ -19,13 +20,15 @@ type VerifyingKey struct {
 }
 
 type SigningKey struct {
-	VerifyingKey
-	seed []byte // ξ from the specification - nil if no seed is known
+	cfg  *params.Cfg
+	seed []byte   // ξ from the specification - nil if no seed is known
+	rho  [32]byte // Rho is the public seed
 	K    [32]byte
 	tr   [64]byte
 	s1   []ring.Rq // Length cfg.L  // TODO - move to Rq
 	s2   []ring.Rq // Length cfg.K
 	t0   []ring.Rq // Length cfg.K
+	t1   []ring.Rq // Component of verifying key - cached for efficiency
 }
 
 // Serialize a public verifying key to bytes.
@@ -152,9 +155,9 @@ func (sk SigningKey) EncodeExpanded() []byte {
 	return encoded
 }
 
-// FromBytes creates a SigningKey from a 32-byte seed using
+// FromSeed creates a SigningKey from a 32-byte seed using
 // Algorithm 6 of FIPS 204 (ML-DSA.KeyGen_internal)
-func FromBytes(cfg *params.Cfg, seed []byte) (*SigningKey, error) {
+func FromSeed(cfg *params.Cfg, seed []byte) (*SigningKey, error) {
 	if len(seed) != 32 {
 		return nil, errors.New("invalid seed length")
 	}
@@ -180,17 +183,28 @@ func FromBytes(cfg *params.Cfg, seed []byte) (*SigningKey, error) {
 	return sk, nil
 }
 
-func GenerateKeyPair(cfg *params.Cfg, rng io.Reader) (*SigningKey, *VerifyingKey) {
+// GenerateKeyPair creates a new SigningKey and VerifyingKey pair using randomness from
+// the provided io.Reader. The reader must be cryptographically secure.
+// The keys are generated using a random seed of 32 bytes.
+func GenerateKeyPair(cfg *params.Cfg, rng io.Reader) (*SigningKey, *VerifyingKey, error) {
 	seed := make([]byte, 32)
-	rand.Read(seed) // don't bother handling errors, crypto/rand crashes the program if it fails
-	sk, err := FromBytes(cfg, seed)
+	n, err := io.ReadFull(rng, seed)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to read random bytes: %w", err)
+	}
+	if n != 32 {
+		// This should never happen, using ReadFull
+		return nil, nil, fmt.Errorf("expected 32 bytes, got %d", n)
+	}
+
+	sk, err := FromSeed(cfg, seed)
 
 	// This should never happen; only error case is if seed is not 32 bytes
 	if err != nil {
 		panic(err)
 	}
 
-	return sk, &sk.VerifyingKey
+	return sk, sk.Public(), nil
 }
 
 func (sk *SigningKey) Bytes() ([]byte, error) {
@@ -200,7 +214,15 @@ func (sk *SigningKey) Bytes() ([]byte, error) {
 	return append([]byte(nil), sk.seed...), nil
 }
 
-// Fills in `t0, t1` based on already-computed `rho, s0, s1`
+func (sk *SigningKey) Public() *VerifyingKey {
+	pk := new(VerifyingKey)
+	pk.cfg = sk.cfg
+	copy(pk.rho[:], sk.rho[:])
+	pk.t1 = slices.Clone(sk.t1)
+	return pk
+}
+
+// Fills in `t0, t1, tr` based on already-computed `rho, s0, s1`
 func (sk *SigningKey) computeT() error {
 	ahat := util.ExpandA(sk.cfg, sk.rho[:])
 	s1hat := util.NttVec(sk.s1)
@@ -211,7 +233,7 @@ func (sk *SigningKey) computeT() error {
 	sk.t1 = ring.FromSymmetricVec(t1)
 
 	h := sha3.NewShake256()
-	h.Write(sk.VerifyingKey.Bytes())
+	h.Write(sk.Public().Bytes())
 	h.Read(sk.tr[:])
 
 	return nil

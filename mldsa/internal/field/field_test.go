@@ -118,7 +118,7 @@ func TestPower2RoundRandom(t *testing.T) {
 			expectedR0 -= (1 << 13)
 		}
 		expectedR1 := (int32(a) - expectedR0) >> 13
-		assert.Equal(t, uint32(expectedR1), r1)
+		assert.Equal(t, expectedR1, r1)
 		assert.Equal(t, expectedR0, r0)
 	}
 }

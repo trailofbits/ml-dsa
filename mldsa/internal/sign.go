@@ -1,9 +1,9 @@
-package mldsa
+package internal
 
 import (
-	"crypto/rand"
 	"crypto/subtle"
 	"errors"
+	"io"
 
 	"trailofbits.com/ml-dsa/mldsa/internal/field"
 	"trailofbits.com/ml-dsa/mldsa/internal/params"
@@ -22,7 +22,7 @@ import (
 // We do not currently support the use fo an "external mu"
 //
 // Returns a signature as a []byte
-func (sk *SigningKey) signInternal(Mprime, rnd []byte) []byte {
+func (sk *SigningKey) SignInternal(Mprime, rnd []byte) []byte {
 	cfg := sk.cfg
 	s1hat := util.NttVec(sk.s1) // TODO - consider caching s1hat, s2hat, t0hat, Ahat
 	s2hat := util.NttVec(sk.s2)
@@ -88,13 +88,13 @@ func (sk *SigningKey) signInternal(Mprime, rnd []byte) []byte {
 
 // Sign takes a message and a context and returns a signature.
 // Context must be less than 256 bytes long, or else this function will return an error.
-func (sk *SigningKey) Sign(msg, ctx []byte) ([]byte, error) {
+func (sk *SigningKey) Sign(msg, ctx []byte, rng io.Reader) ([]byte, error) {
 	if len(ctx) > 255 {
 		return nil, errors.New("context must be less than 256 bytes long")
 	}
 
 	rnd := make([]byte, 32)
-	if _, err := rand.Read(rnd); err != nil {
+	if _, err := rng.Read(rnd); err != nil {
 		return nil, err
 	}
 
@@ -103,17 +103,11 @@ func (sk *SigningKey) Sign(msg, ctx []byte) ([]byte, error) {
 	Mprime = append(Mprime, ctx...)
 	Mprime = append(Mprime, msg...)
 
-	sigma := sk.signInternal(Mprime, rnd)
+	sigma := sk.SignInternal(Mprime, rnd)
 	return sigma, nil
 }
 
 // Algorithm 8
-//
-// These parameters are specific to the ML-DSA instance (44, 65, or 87):
-// k, l, beta, tau, omega, lambda, gamma1, gamma2
-//
-// These are properties from the public key:
-// rho, t1
 //
 // The message representitve for the signature is:
 // Mprime
