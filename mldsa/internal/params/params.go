@@ -50,7 +50,7 @@ var MLDSA65Cfg = &Cfg{
 	LogEta:    2,
 	Beta:      196,
 	Omega:     55,
-	W1Bits:    5, // bitlen(31)
+	W1Bits:    4, // bitlen(15)
 	SkSize:    4032,
 	PkSize:    1952,
 }
@@ -66,7 +66,7 @@ var MLDSA87Cfg = &Cfg{
 	LogEta:    1,
 	Beta:      120,
 	Omega:     75,
-	W1Bits:    5, // bitlen(31)
+	W1Bits:    4, // bitlen(15)
 	SkSize:    4896,
 	PkSize:    2592,
 }
