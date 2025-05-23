@@ -203,13 +203,22 @@ func TestDivConstTime32(t *testing.T) {
 	x := uint32(1000) // number of sequential values to test; originally set to m
 	for _, m := range moduli {
 		for i := range x {
+			w := i / m
 			y := i % m
-			_, z := field.DivConstTime32(i, m)
+			wp, z := field.DivConstTime32(i, m)
 			assert.Equal(t, y, z)
+			assert.Equal(t, w, wp)
 
 			// Add m to i, expect i
-			_, z = field.DivConstTime32(i+m, m)
+			w = (i + m) / m
+			wp, z = field.DivConstTime32(i+m, m)
 			assert.Equal(t, y, z)
+			assert.Equal(t, w, wp)
+
+			// Test division directly
+			w = (i * m) / m
+			wp, _ = field.DivConstTime32(i*m, m)
+			assert.Equal(t, w, wp)
 		}
 	}
 }
