@@ -7,6 +7,7 @@ package field
 
 import (
 	"crypto/subtle"
+	"math/bits"
 
 	"trailofbits.com/ml-dsa/mldsa/internal/params"
 )
@@ -79,13 +80,22 @@ func (a T) Mul(b T) T {
 // r1 is then in the range [0, q/2^d), which is 10 bits
 func (a T) Power2Round() (int32, int32) {
 	r0 := int32(a.reduced) & ((1 << d) - 1)
-	// mod+/- is defined in the spec to be in the range
-	// -ceil(m/2) < mod <= floor(m/2)
-	// For even moduli, this means that m/2 is a canonical representative.
-	// TODO: Bit-twiddle this to make constant-time
-	if r0 > (1 << (d - 1)) {
-		r0 -= (1 << d)
-	}
+
+	// Constant-time conditional subtraction to avoid timing side-channels
+	// Check if r0 > 2^(d-1) without branching
+	threshold := int32(1 << (d - 1))
+
+	// Create a mask: all 1s if r0 > threshold, all 0s otherwise
+	// We want the mask to be -1 when r0 > threshold, 0 otherwise
+	// Since we want r0 > threshold (not >=), we check if (threshold - r0) < 0
+	mask := (threshold - r0) >> 31
+
+	// Conditionally subtract 2^d from r0 using the mask
+	// If mask is -1 (all 1s), we subtract 2^d
+	// If mask is 0, we subtract 0
+	adjustment := mask & (1 << d)
+	r0 -= adjustment
+
 	r1 := (int32(a.reduced) - r0) >> d
 	return r1, r0
 }
@@ -95,18 +105,45 @@ func (a T) Power2Round() (int32, int32) {
 // -gamma2 < r0 <= gamma2
 // 0 <= r1 < (q-1)/(2 * gamma2)
 func (a T) Decompose(gamma2 uint32) (r1 int32, r0 int32) {
-	// TODO - make this constant-time
+
 	rPlus := int32(a.Reduced())
-	r0 = rPlus % int32(2*gamma2)
-	if r0 > int32(gamma2) {
-		r0 -= 2 * int32(gamma2)
-	}
-	if int32(rPlus)-r0 == int32(q-1) {
-		r1 = 0
-		r0 = r0 - 1
-	} else {
-		r1 = (rPlus - r0) / int32(2*gamma2)
-	}
+	twoGamma2 := int32(2 * gamma2)
+	gamma2Int := int32(gamma2)
+
+	// Constant-time modulo: r0 = rPlus % (2*gamma2)
+	r0 = rPlus - (rPlus/twoGamma2)*twoGamma2
+
+	// Constant-time conditional: if r0 > gamma2, subtract 2*gamma2
+	// Create mask: -1 if r0 > gamma2, 0 otherwise
+	mask1 := (gamma2Int - r0) >> 31
+	adjustment1 := mask1 & twoGamma2
+	r0 -= adjustment1
+
+	// Constant-time conditional for the special case
+	// if rPlus - r0 == q-1, then r1 = 0 and r0 = r0 - 1
+	// otherwise r1 = (rPlus - r0) / (2*gamma2)
+
+	diff := rPlus - r0
+	qMinus1 := int32(q - 1)
+
+	// Create mask: -1 if diff == q-1, 0 otherwise
+	// We use the fact that (a-b) | (b-a) has MSB set iff a != b
+	temp := (diff - qMinus1) | (qMinus1 - diff)
+	mask2 := ^(temp >> 31) // Invert to get -1 when equal, 0 when not equal
+
+	// Use a constant-time function to compute integer division
+	quotient, _ := DivConstTime32(uint32(diff), uint32(twoGamma2))
+
+	// Calculate both possible values
+	normalR1 := int32(quotient)
+	specialR1 := int32(0)
+	normalR0 := r0
+	specialR0 := r0 - 1
+
+	// Select between normal and special case using mask2
+	r1 = (mask2 & specialR1) | (^mask2 & normalR1)
+	r0 = (mask2 & specialR0) | (^mask2 & normalR0)
+
 	return r1, r0
 }
 
@@ -164,4 +201,48 @@ func FromThreeBytes(b0, b1, b2 byte) *T {
 	}
 	r = reduceOnce(z)
 	return &r
+}
+
+// Modification of https://en.wikipedia.org/wiki/Division_algorithm#Integer_division_(unsigned)_with_remainder
+// Except with branchless, conditional swaps
+func DivConstTime32(n uint32, d uint32) (uint32, uint32) {
+	quotient := uint32(0)
+	R := uint32(0)
+
+	// We are dealing with 32-bit integers, so we iterate 32 times
+	b := uint32(32)
+	i := b
+	for range b {
+		i--
+		R <<= 1
+
+		// R(0) := N(i)
+		R |= ((n >> i) & 1)
+
+		// swap from Sub32() will look like this:
+		// if remainder > d,  swap == 0
+		// if remainder == d, swap == 0
+		// if remainder < d,  swap == 1
+		Rprime, swap := bits.Sub32(R, d, 0)
+
+		// invert logic of sub32 for conditional swap
+		swap ^= 1
+		/*
+			Desired:
+				if R > D  then swap = 1
+				if R == D then swap = 1
+				if R < D  then swap = 0
+		*/
+
+		// Qprime := Q
+		// Qprime(i) := 1
+		Qprime := quotient
+		Qprime |= (1 << i)
+
+		// Conditional swap:
+		mask := uint32(-swap)
+		R ^= ((Rprime ^ R) & mask)
+		quotient ^= ((Qprime ^ quotient) & mask)
+	}
+	return quotient, R
 }

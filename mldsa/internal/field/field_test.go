@@ -197,3 +197,19 @@ func TestSymmetric(t *testing.T) {
 		assert.Equal(t, a, uint32(int32(sym)+int32(q))%q)
 	}
 }
+
+func TestDivConstTime32(t *testing.T) {
+	moduli := []uint32{95232, 261888}
+	x := uint32(1000) // number of sequential values to test; originally set to m
+	for _, m := range moduli {
+		for i := range x {
+			y := i % m
+			_, z := field.DivConstTime32(i, m)
+			assert.Equal(t, y, z)
+
+			// Add m to i, expect i
+			_, z = field.DivConstTime32(i+m, m)
+			assert.Equal(t, y, z)
+		}
+	}
+}
