@@ -205,8 +205,8 @@ func FromThreeBytes(b0, b1, b2 byte) *T {
 }
 
 // Alternate to integer division by using Barrett Reduction
-// Calculates (n%d, n/d) given (n, d)
-func DivBarrett(n, d uint32) (uint32, uint32) {
+// Calculates (n/d, n%d) given (n, d)
+func DivBarrett(numerator, denominator uint32) (uint32, uint32) {
     // Since d is always 2 * gamma2, we can precompute (2^64 / d) and use it
     var reciprocal uint64
     switch d {
@@ -214,19 +214,15 @@ func DivBarrett(n, d uint32) (uint32, uint32) {
         reciprocal = 193703209779376
     case 261888:
         reciprocal = 70368744177664
-    case 2 * (1 << 17): // 262144
-        reciprocal = 70368744177664
-    case 2 * (1 << 19): // 1048576  
-        reciprocal = 17592186044416
     default:
         // Fallback to slow division
-		return DivConstTime32(n, d)
+		return DivConstTime32(numerator, denominator)
     }
     
     // Barrett reduction
-    hi, _ := bits.Mul64(uint64(n), reciprocal)
+    hi, _ := bits.Mul64(uint64(numerator), reciprocal)
     quo := uint32(hi)
-    r := n - quo * d
+    r := numerator - quo * denominator
     
     // Two correction steps using bits.Sub32 (constant-time)
     for i := 0; i < 2; i++ {
@@ -241,15 +237,17 @@ func DivBarrett(n, d uint32) (uint32, uint32) {
 }
 
 // For signed integers:
-func divBarrettSigned(n, d int32) (int32, int32) {
-	un := uint32(n)
-	ud := uint32(d)
+func divBarrettSigned(numerator, denominator int32) (int32, int32) {
+	un := uint32(numerator)
+	ud := uint32(denominator)
 	quo, r := DivBarrett(un, ud)
 	return int32(quo), int32(r)
 }
 
 // Modification of https://en.wikipedia.org/wiki/Division_algorithm#Integer_division_(unsigned)_with_remainder
 // Except with branchless, conditional swaps
+//
+// This function works for arbitrary values for d, but is slower than DivBarrett.
 func DivConstTime32(n uint32, d uint32) (uint32, uint32) {
 	quotient := uint32(0)
 	R := uint32(0)
