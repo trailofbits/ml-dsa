@@ -209,7 +209,7 @@ func FromThreeBytes(b0, b1, b2 byte) *T {
 func DivBarrett(numerator, denominator uint32) (uint32, uint32) {
     // Since d is always 2 * gamma2, we can precompute (2^64 / d) and use it
     var reciprocal uint64
-    switch d {
+    switch denominator {
     case 95232:
         reciprocal = 193703209779376
     case 261888:
@@ -226,7 +226,7 @@ func DivBarrett(numerator, denominator uint32) (uint32, uint32) {
     
     // Two correction steps using bits.Sub32 (constant-time)
     for i := 0; i < 2; i++ {
-        newR, borrow := bits.Sub32(r, d, 0)
+        newR, borrow := bits.Sub32(r, denominator, 0)
         correction := borrow ^ 1  // 1 if r >= d, 0 if r < d
         mask := uint32(-correction)
         quo += mask & 1
