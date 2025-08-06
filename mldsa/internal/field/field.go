@@ -214,6 +214,10 @@ func DivBarrett(numerator, denominator uint32) (uint32, uint32) {
         reciprocal = 193703209779376
     case 261888:
         reciprocal = 70368744177664
+    case 190464:
+        reciprocal = 96851604889688
+    case 523776:
+        reciprocal = 35184372088832
     default:
         // Fallback to slow division
 		return DivConstTime32(numerator, denominator)
