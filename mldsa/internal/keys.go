@@ -123,7 +123,7 @@ func SkDecode(cfg *params.Cfg, sk []byte) (*SigningKey, error) {
 
 	// This computes `t0` and `t1` from `s1` and `s2`
 	// which means that we don't actually need to parse `t0` from the serialized key.
-	err := res.computeT()
+	err = res.computeT()
 	if err != nil {
 		return nil, err
 	}
