@@ -1,4 +1,4 @@
-# Module-Lattice Digital Signature Algorithm (ML-DSA, FIPS 204)
+# Module-Lattice Digital Signature Algorithm
 
 This repository implements [FIPS 204](https://nvlpubs.nist.gov/nistpubs/fips/nist.fips.204.pdf) in Go.
 

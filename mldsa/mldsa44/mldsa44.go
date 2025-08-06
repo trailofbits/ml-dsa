@@ -1,6 +1,10 @@
 // Copyright 2025 Trail of Bits. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
+
+// Package mldsa44 implements the ML-DSA-44 parameter set of the ML-DSA algorithm.
+//
+// See [FIPS 204](https://nvlpubs.nist.gov/nistpubs/fips/nist.fips.204.pdf) for more details.
 package mldsa44
 
 import (
