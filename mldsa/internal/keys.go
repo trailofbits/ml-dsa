@@ -123,7 +123,10 @@ func SkDecode(cfg *params.Cfg, sk []byte) (*SigningKey, error) {
 
 	// This computes `t0` and `t1` from `s1` and `s2`
 	// which means that we don't actually need to parse `t0` from the serialized key.
-	res.computeT()
+	err := res.computeT()
+	if err != nil {
+		return nil, err
+	}
 
 	// We do guarantee that `t0` and `tr` in the serialized key is correct, by
 	// checking the round-trip serialization.
@@ -172,13 +175,26 @@ func FromSeed(cfg *params.Cfg, seed []byte) (*SigningKey, error) {
 	h := sha3.NewShake256()
 	h.Write(seed[:])
 	h.Write([]byte{cfg.K, cfg.L})
-	h.Read(sk.rho[:])
-	h.Read(rhoPrime[:])
-	h.Read(sk.K[:])
+
+	_, err := h.Read(sk.rho[:])
+	if err != nil {
+		return sk, err
+	}
+	_, err = h.Read(rhoPrime[:])
+	if err != nil {
+		return sk, err
+	}
+	_, err = h.Read(sk.K[:])
+	if err != nil {
+		return sk, err
+	}
 
 	sk.s1, sk.s2 = util.ExpandS(cfg, rhoPrime[:])
 
-	sk.computeT()
+	err = sk.computeT()
+	if err != nil {
+		return sk, err
+	}
 
 	return sk, nil
 }
@@ -234,7 +250,10 @@ func (sk *SigningKey) computeT() error {
 
 	h := sha3.NewShake256()
 	h.Write(sk.Public().Bytes())
-	h.Read(sk.tr[:])
+	_, err := h.Read(sk.tr[:])
+	if err != nil {
+		return err
+	}
 
 	return nil
 }

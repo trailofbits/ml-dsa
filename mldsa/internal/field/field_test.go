@@ -225,7 +225,7 @@ func TestDivConstTime32(t *testing.T) {
 			w = (i * m) / m
 			wp, _ = field.DivConstTime32(i*m, m)
 			assert.Equal(t, w, wp)
-			wp, z = field.DivBarrett(i*m, m)
+			wp, _ = field.DivBarrett(i*m, m)
 			assert.Equal(t, w, wp)
 		}
 	}

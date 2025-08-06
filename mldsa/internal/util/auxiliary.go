@@ -115,15 +115,15 @@ func SampleInBall(cfg *params.Cfg, seed []byte) (c ring.Rz) {
 	var s [8]byte
 	ctx := sha3.NewShake256()
 	ctx.Write(seed)
-	ctx.Read(s[:])
+	ctx.Read(s[:]) //nolint:errcheck
 
 	var j [1]byte
 	// The NIST specification says "to 255" which means "< 256"
 	// for i from (256 - tau) to 255 do
 	for i := uint16(256 - cfg.Tau); i < 256; i++ {
-		ctx.Read(j[:])
+		ctx.Read(j[:]) //nolint:errcheck
 		for uint16(j[0]) > i {
-			ctx.Read(j[:])
+			ctx.Read(j[:]) //nolint:errcheck
 		}
 		j0 := j[0]
 		c[i] = c[j0]
@@ -146,7 +146,7 @@ func RejNTTPoly(seed []byte) (ah ring.Tq) {
 	for j := 0; j < 256; j++ {
 		var tmp *field.T
 		for tmp == nil {
-			ctx.Read(s[:])
+			ctx.Read(s[:]) //nolint:errcheck
 			tmp = field.FromThreeBytes(s[0], s[1], s[2])
 		}
 		ah[j] = *tmp
@@ -160,7 +160,7 @@ func RejBoundedPoly(eta int, seed []byte) (a ring.Rq) {
 	ctx := sha3.NewShake256()
 	ctx.Write(seed)
 	for j := 0; j < 256; {
-		ctx.Read(z[:])
+		ctx.Read(z[:]) //nolint:errcheck
 		z0 := field.FromHalfByte(eta, z[0]&0xf)
 		if z0 != nil {
 			a[j] = *z0
@@ -221,7 +221,7 @@ func ExpandS(cfg *params.Cfg, rho []byte) ([]ring.Rq, []ring.Rq) {
 func H(out []byte, data []byte) {
 	ctx := sha3.NewShake256()
 	ctx.Write(data)
-	ctx.Read(out)
+	ctx.Read(out) //nolint:errcheck
 }
 
 // Algorithm 34

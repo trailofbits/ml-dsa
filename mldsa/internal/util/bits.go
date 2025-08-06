@@ -12,7 +12,7 @@ import (
 // Algorithm 9
 // Returns a length-`a` []byte with a distinct byte entry for each bit, in lsb order
 func IntegerToBits[T ~uint32](x T, a int) []byte {
-	var y []byte = make([]byte, a)
+	var y = make([]byte, a)
 	for i := range a {
 		y[i] = byte(x & 1)
 		x = x >> 1
