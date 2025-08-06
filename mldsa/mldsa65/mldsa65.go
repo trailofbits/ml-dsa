@@ -18,10 +18,14 @@ import (
 // Package mldsa65 implements the ML-DSA-65 parameter set of the ML-DSA algorithm.
 
 // PublicKey is the type of ML-DSA public keys. Implements crypto.PublicKey.
-type PublicKey internal.VerifyingKey
+type PublicKey struct {
+	pk internal.VerifyingKey
+}
 
 // PrivateKey is the type of ML-DSA private keys. It implements crypto.Signer.
-type PrivateKey internal.SigningKey
+type PrivateKey struct {
+	sk internal.SigningKey
+}
 
 // GenerateKeyPair generates a key pair for the ML-DSA algorithm.
 func GenerateKeyPair(rng io.Reader) (*PublicKey, *PrivateKey, error) {
@@ -30,10 +34,10 @@ func GenerateKeyPair(rng io.Reader) (*PublicKey, *PrivateKey, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	return (*PublicKey)(pk), (*PrivateKey)(sk), nil
+	return &PublicKey{*pk}, &PrivateKey{*sk}, nil
 }
 
 // Public returns the public key corresponding to the ML-DSA private key.
 func (sk *PrivateKey) Public() crypto.PublicKey {
-	return (*internal.SigningKey)(sk).Public()
+	return sk.sk.Public()
 }
