@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"trailofbits.com/ml-dsa/mldsa/internal/params"
+	"trailofbits.com/ml-dsa/internal/params"
 )
 
 func TestSkDecodeEncode(t *testing.T) {

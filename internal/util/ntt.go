@@ -1,9 +1,9 @@
 package util
 
 import (
-	"trailofbits.com/ml-dsa/mldsa/internal/field"
-	"trailofbits.com/ml-dsa/mldsa/internal/params"
-	"trailofbits.com/ml-dsa/mldsa/internal/ring"
+	"trailofbits.com/ml-dsa/internal/field"
+	"trailofbits.com/ml-dsa/internal/params"
+	"trailofbits.com/ml-dsa/internal/ring"
 )
 
 // TODO - make a vector receiver type

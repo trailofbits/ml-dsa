@@ -7,8 +7,8 @@
 package ring
 
 import (
-	"trailofbits.com/ml-dsa/mldsa/internal/field"
-	"trailofbits.com/ml-dsa/mldsa/internal/params"
+	"trailofbits.com/ml-dsa/internal/field"
+	"trailofbits.com/ml-dsa/internal/params"
 )
 
 const n = params.N

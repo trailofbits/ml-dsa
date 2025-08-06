@@ -18,9 +18,9 @@ import (
 	"crypto/subtle"
 
 	"golang.org/x/crypto/sha3"
-	"trailofbits.com/ml-dsa/mldsa/internal/field"
-	"trailofbits.com/ml-dsa/mldsa/internal/params"
-	"trailofbits.com/ml-dsa/mldsa/internal/ring"
+	"trailofbits.com/ml-dsa/internal/field"
+	"trailofbits.com/ml-dsa/internal/params"
+	"trailofbits.com/ml-dsa/internal/ring"
 )
 
 // Algorithm 22, parametrized by `k` from each ML-DSA parameter set

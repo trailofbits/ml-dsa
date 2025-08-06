@@ -1,14 +1,17 @@
 package internal
 
 import (
+	"crypto"
+	"crypto/rand"
 	"crypto/subtle"
 	"errors"
 	"io"
 
-	"trailofbits.com/ml-dsa/mldsa/internal/field"
-	"trailofbits.com/ml-dsa/mldsa/internal/params"
-	"trailofbits.com/ml-dsa/mldsa/internal/ring"
-	"trailofbits.com/ml-dsa/mldsa/internal/util"
+	"trailofbits.com/ml-dsa/internal/field"
+	"trailofbits.com/ml-dsa/internal/params"
+	"trailofbits.com/ml-dsa/internal/ring"
+	"trailofbits.com/ml-dsa/internal/util"
+	options "trailofbits.com/ml-dsa/options"
 )
 
 // Algorithm 7
@@ -87,21 +90,41 @@ func (sk *SigningKey) SignInternal(Mprime, rnd []byte) []byte {
 }
 
 // Sign takes a message and a context and returns a signature.
+// Only pure ML-DSA is supported.
 // Context must be less than 256 bytes long, or else this function will return an error.
-func (sk *SigningKey) Sign(msg, ctx []byte, rng io.Reader) ([]byte, error) {
+func (sk *SigningKey) Sign(rng io.Reader, message []byte, opts crypto.SignerOpts) ([]byte, error) {
+	var h crypto.Hash
+	ctx := []byte{}
+
+	if opts != nil {
+		h = opts.HashFunc()
+		ops, ok := opts.(*options.Options)
+		if ok {
+			ctx = []byte(ops.Context)
+		}
+	}
+
+	if h != 0 {
+		return nil, errors.New("opts.HashFunc() must be zero for pure ML-DSA")
+	}
+
 	if len(ctx) > 255 {
 		return nil, errors.New("context must be less than 256 bytes long")
 	}
 
 	rnd := make([]byte, 32)
-	if _, err := rng.Read(rnd); err != nil {
+	if rng == nil {
+		rng = rand.Reader
+	}
+	_, err := rng.Read(rnd)
+	if err != nil {
 		return nil, err
 	}
 
-	Mprime := make([]byte, 0, len(ctx)+len(msg)+2)
+	Mprime := make([]byte, 0, len(ctx)+len(message)+2)
 	Mprime = append(Mprime, byte(0), byte(len(ctx)))
 	Mprime = append(Mprime, ctx...)
-	Mprime = append(Mprime, msg...)
+	Mprime = append(Mprime, message...)
 
 	sigma := sk.SignInternal(Mprime, rnd)
 	return sigma, nil
@@ -156,7 +179,20 @@ func (vk *VerifyingKey) VerifyInternal(Mprime, sigma []byte) bool {
 	return z_inf <= bound && subtle.ConstantTimeCompare(c_tilde, c_tilde_prime) == 1
 }
 
-func (vk *VerifyingKey) Verify(msg, ctx []byte, sig []byte) bool {
+// Verify verifies a signature.
+//
+// Only pure ML-DSA is supported. opts.HashFunc() must return 0.
+//
+// opts may be nil, in which case empty context is used.
+func (vk *VerifyingKey) Verify(msg, sig []byte, opts *options.Options) bool {
+	ctx := []byte{}
+	if opts != nil {
+		if opts.HashFunc() != 0 {
+			return false
+		}
+		ctx = []byte(opts.Context)
+	}
+
 	if len(ctx) > 255 {
 		return false
 	}
