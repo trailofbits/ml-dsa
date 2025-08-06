@@ -72,7 +72,7 @@ func PublicKeyFromBytes(bytes []byte) (*PublicKey, error) {
 // Signs the given message with priv. If rand is nil, [crypto/rand] is used.
 // For deterministic signing, you may explicitly pass in a reader that always returns zeros.
 //
-// Only pure ML-DSA is supported. opts.HashFuc() must return 0.
+// Only pure ML-DSA is supported. opts.HashFunc() must return 0.
 // opts may be nil, in which case empty context is used.
 //
 // [crypto/rand]: https://pkg.go.dev/crypto/rand
