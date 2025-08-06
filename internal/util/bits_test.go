@@ -5,9 +5,9 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"trailofbits.com/ml-dsa/mldsa/internal/params"
-	"trailofbits.com/ml-dsa/mldsa/internal/ring"
-	"trailofbits.com/ml-dsa/mldsa/internal/util"
+	"trailofbits.com/ml-dsa/internal/params"
+	"trailofbits.com/ml-dsa/internal/ring"
+	"trailofbits.com/ml-dsa/internal/util"
 )
 
 func TestSimpleBitPack(t *testing.T) {

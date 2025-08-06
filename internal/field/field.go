@@ -9,7 +9,7 @@ import (
 	"crypto/subtle"
 	"math/bits"
 
-	"trailofbits.com/ml-dsa/mldsa/internal/params"
+	"trailofbits.com/ml-dsa/internal/params"
 )
 
 // T is the type of field elements F_q, where q = 8380417.
@@ -112,7 +112,7 @@ func (a T) Decompose(gamma2 uint32) (r1 int32, r0 int32) {
 
 	// Constant-time modulo: r0 = rPlus % (2*gamma2)
 	tmp, _ := divBarrettSigned(rPlus, twoGamma2)
-	r0 = rPlus - (tmp*twoGamma2)
+	r0 = rPlus - (tmp * twoGamma2)
 
 	// Constant-time conditional: if r0 > gamma2, subtract 2*gamma2
 	// Create mask: -1 if r0 > gamma2, 0 otherwise
@@ -207,33 +207,33 @@ func FromThreeBytes(b0, b1, b2 byte) *T {
 // Alternate to integer division by using Barrett Reduction
 // Calculates (n/d, n%d) given (n, d)
 func DivBarrett(numerator, denominator uint32) (uint32, uint32) {
-    // Since d is always 2 * gamma2, we can precompute (2^64 / d) and use it
-    var reciprocal uint64
-    switch denominator {
-    case 95232:
-        reciprocal = 193703209779376
-    case 261888:
-        reciprocal = 70368744177664
-    default:
-        // Fallback to slow division
+	// Since d is always 2 * gamma2, we can precompute (2^64 / d) and use it
+	var reciprocal uint64
+	switch denominator {
+	case 95232:
+		reciprocal = 193703209779376
+	case 261888:
+		reciprocal = 70368744177664
+	default:
+		// Fallback to slow division
 		return DivConstTime32(numerator, denominator)
-    }
-    
-    // Barrett reduction
-    hi, _ := bits.Mul64(uint64(numerator), reciprocal)
-    quo := uint32(hi)
-    r := numerator - quo * denominator
-    
-    // Two correction steps using bits.Sub32 (constant-time)
-    for i := 0; i < 2; i++ {
-        newR, borrow := bits.Sub32(r, denominator, 0)
-        correction := borrow ^ 1  // 1 if r >= d, 0 if r < d
-        mask := uint32(-correction)
-        quo += mask & 1
-        r ^= mask & (newR ^ r)  // Conditional swap using XOR
-    }
-    
-    return quo, r
+	}
+
+	// Barrett reduction
+	hi, _ := bits.Mul64(uint64(numerator), reciprocal)
+	quo := uint32(hi)
+	r := numerator - quo*denominator
+
+	// Two correction steps using bits.Sub32 (constant-time)
+	for i := 0; i < 2; i++ {
+		newR, borrow := bits.Sub32(r, denominator, 0)
+		correction := borrow ^ 1 // 1 if r >= d, 0 if r < d
+		mask := uint32(-correction)
+		quo += mask & 1
+		r ^= mask & (newR ^ r) // Conditional swap using XOR
+	}
+
+	return quo, r
 }
 
 // For signed integers:

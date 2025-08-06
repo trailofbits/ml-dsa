@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"crypto/rand"
 	"crypto/subtle"
 	"errors"
 	"fmt"
@@ -8,9 +9,9 @@ import (
 	"slices"
 
 	"golang.org/x/crypto/sha3"
-	"trailofbits.com/ml-dsa/mldsa/internal/params"
-	"trailofbits.com/ml-dsa/mldsa/internal/ring"
-	"trailofbits.com/ml-dsa/mldsa/internal/util"
+	"trailofbits.com/ml-dsa/internal/params"
+	"trailofbits.com/ml-dsa/internal/ring"
+	"trailofbits.com/ml-dsa/internal/util"
 )
 
 type VerifyingKey struct {
@@ -204,6 +205,9 @@ func FromSeed(cfg *params.Cfg, seed []byte) (*SigningKey, error) {
 // The keys are generated using a random seed of 32 bytes.
 func GenerateKeyPair(cfg *params.Cfg, rng io.Reader) (*SigningKey, *VerifyingKey, error) {
 	seed := make([]byte, 32)
+	if rng == nil {
+		rng = rand.Reader
+	}
 	n, err := io.ReadFull(rng, seed)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to read random bytes: %w", err)

@@ -6,7 +6,7 @@ import (
 	"crypto/rand"
 
 	"github.com/stretchr/testify/assert"
-	"trailofbits.com/ml-dsa/mldsa/internal/params"
+	"trailofbits.com/ml-dsa/internal/params"
 )
 
 func TestSampleInBall(t *testing.T) {

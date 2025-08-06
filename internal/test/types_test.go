@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"trailofbits.com/ml-dsa/mldsa/internal/params"
+	"trailofbits.com/ml-dsa/internal/params"
 )
 
 func parseCfg(paramString string) *params.Cfg {

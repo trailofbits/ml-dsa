@@ -5,8 +5,8 @@ import (
 	"errors"
 	"fmt"
 
-	"trailofbits.com/ml-dsa/mldsa/internal/params"
-	"trailofbits.com/ml-dsa/mldsa/internal/ring"
+	"trailofbits.com/ml-dsa/internal/params"
+	"trailofbits.com/ml-dsa/internal/ring"
 )
 
 // Algorithm 9

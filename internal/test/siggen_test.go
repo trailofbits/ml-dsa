@@ -8,8 +8,9 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"trailofbits.com/ml-dsa/mldsa/internal"
-	"trailofbits.com/ml-dsa/mldsa/internal/params"
+	internal "trailofbits.com/ml-dsa/internal"
+	"trailofbits.com/ml-dsa/internal/params"
+	options "trailofbits.com/ml-dsa/options"
 )
 
 func TestSignatureGeneration(t *testing.T) {
@@ -49,7 +50,7 @@ func TestSignatureGeneration(t *testing.T) {
 					sig = sk.SignInternal(test.msg, rnd[:])
 				} else {
 					reader := bytes.NewReader(rnd[:])
-					sig, err = sk.Sign(test.msg, test.ctx, reader)
+					sig, err = sk.Sign(reader, test.msg, &options.Options{Context: string(test.ctx)})
 					assert.NoError(t, err, "failed to sign message in test case %d", test.id)
 				}
 				assert.NoError(t, err, "failed to sign message in test case %d", test.id)

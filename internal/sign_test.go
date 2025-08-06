@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"trailofbits.com/ml-dsa/mldsa/internal/params"
+	"trailofbits.com/ml-dsa/internal/params"
 )
 
 var ps = []*params.Cfg{params.MLDSA44Cfg, params.MLDSA65Cfg, params.MLDSA87Cfg}
@@ -18,14 +18,13 @@ func TestSignVerifyRandomKeypair(t *testing.T) {
 
 			message, _ := hex.DecodeString("48656c6c6f20776f726c64")
 
-			ctx := []byte{}
-			sig, err := sk.Sign(message, ctx, rand.Reader)
+			sig, err := sk.Sign(rand.Reader, message, nil)
 			assert.NoError(t, err)
 			pk := sk.Public()
 
-			assert.True(t, pk.Verify(message, ctx, sig))
+			assert.True(t, pk.Verify(message, sig, nil))
 			sig[0] ^= 0xff
-			assert.False(t, pk.Verify(message, ctx, sig))
+			assert.False(t, pk.Verify(message, sig, nil))
 		})
 	}
 }
