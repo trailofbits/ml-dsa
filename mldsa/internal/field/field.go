@@ -111,7 +111,8 @@ func (a T) Decompose(gamma2 uint32) (r1 int32, r0 int32) {
 	gamma2Int := int32(gamma2)
 
 	// Constant-time modulo: r0 = rPlus % (2*gamma2)
-	r0 = rPlus - (rPlus/twoGamma2)*twoGamma2
+	tmp, _ := divBarrettSigned(rPlus, twoGamma2)
+	r0 = rPlus - (tmp*twoGamma2)
 
 	// Constant-time conditional: if r0 > gamma2, subtract 2*gamma2
 	// Create mask: -1 if r0 > gamma2, 0 otherwise
@@ -132,7 +133,7 @@ func (a T) Decompose(gamma2 uint32) (r1 int32, r0 int32) {
 	mask2 := ^(temp >> 31) // Invert to get -1 when equal, 0 when not equal
 
 	// Use a constant-time function to compute integer division
-	quotient, _ := DivConstTime32(uint32(diff), uint32(twoGamma2))
+	quotient, _ := DivBarrett(uint32(diff), uint32(twoGamma2))
 
 	// Calculate both possible values
 	normalR1 := int32(quotient)
@@ -203,8 +204,50 @@ func FromThreeBytes(b0, b1, b2 byte) *T {
 	return &r
 }
 
+// Alternate to integer division by using Barrett Reduction
+// Calculates (n/d, n%d) given (n, d)
+func DivBarrett(numerator, denominator uint32) (uint32, uint32) {
+    // Since d is always 2 * gamma2, we can precompute (2^64 / d) and use it
+    var reciprocal uint64
+    switch denominator {
+    case 95232:
+        reciprocal = 193703209779376
+    case 261888:
+        reciprocal = 70368744177664
+    default:
+        // Fallback to slow division
+		return DivConstTime32(numerator, denominator)
+    }
+    
+    // Barrett reduction
+    hi, _ := bits.Mul64(uint64(numerator), reciprocal)
+    quo := uint32(hi)
+    r := numerator - quo * denominator
+    
+    // Two correction steps using bits.Sub32 (constant-time)
+    for i := 0; i < 2; i++ {
+        newR, borrow := bits.Sub32(r, denominator, 0)
+        correction := borrow ^ 1  // 1 if r >= d, 0 if r < d
+        mask := uint32(-correction)
+        quo += mask & 1
+        r ^= mask & (newR ^ r)  // Conditional swap using XOR
+    }
+    
+    return quo, r
+}
+
+// For signed integers:
+func divBarrettSigned(numerator, denominator int32) (int32, int32) {
+	un := uint32(numerator)
+	ud := uint32(denominator)
+	quo, r := DivBarrett(un, ud)
+	return int32(quo), int32(r)
+}
+
 // Modification of https://en.wikipedia.org/wiki/Division_algorithm#Integer_division_(unsigned)_with_remainder
 // Except with branchless, conditional swaps
+//
+// This function works for arbitrary values for d, but is slower than DivBarrett.
 func DivConstTime32(n uint32, d uint32) (uint32, uint32) {
 	quotient := uint32(0)
 	R := uint32(0)

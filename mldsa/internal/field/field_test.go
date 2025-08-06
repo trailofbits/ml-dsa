@@ -208,16 +208,24 @@ func TestDivConstTime32(t *testing.T) {
 			wp, z := field.DivConstTime32(i, m)
 			assert.Equal(t, y, z)
 			assert.Equal(t, w, wp)
+			wp, z = field.DivBarrett(i, m)
+			assert.Equal(t, y, z)
+			assert.Equal(t, w, wp)
 
 			// Add m to i, expect i
 			w = (i + m) / m
 			wp, z = field.DivConstTime32(i+m, m)
 			assert.Equal(t, y, z)
 			assert.Equal(t, w, wp)
+			wp, z = field.DivBarrett(i+m, m)
+			assert.Equal(t, y, z)
+			assert.Equal(t, w, wp)
 
 			// Test division directly
 			w = (i * m) / m
 			wp, _ = field.DivConstTime32(i*m, m)
+			assert.Equal(t, w, wp)
+			wp, z = field.DivBarrett(i*m, m)
 			assert.Equal(t, w, wp)
 		}
 	}
