@@ -12,7 +12,10 @@ import (
 func TestSampleInBall(t *testing.T) {
 	// Sample 32-byte slice
 	buf := make([]byte, params.MLDSA44Cfg.Lambda/4)
-	rand.Read(buf)
+	_, err := rand.Read(buf)
+	if err != nil {
+		t.Fatalf("Could not read from RNG")
+	}
 
 	sample := SampleInBall(params.MLDSA44Cfg, buf)
 

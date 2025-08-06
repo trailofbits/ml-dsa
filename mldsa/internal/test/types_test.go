@@ -31,7 +31,7 @@ func ParseTestVectorFile[TestGroup json.Unmarshaler](path string) (*TestVectorFi
 	if err != nil {
 		return nil, err
 	}
-	defer file.Close()
+	defer file.Close() //nolint:errcheck
 
 	testVectors := new(TestVectorFile[TestGroup])
 	decoder := json.NewDecoder(file)
