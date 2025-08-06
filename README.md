@@ -2,6 +2,8 @@
 
 This repository implements [FIPS 204](https://nvlpubs.nist.gov/nistpubs/fips/nist.fips.204.pdf) in Go.
 
+[![Build Status](https://github.com/trailofbits/go-ml-dsa/actions/workflows/ci.yml/badge.svg)](https://github.com/trailofbits/go-ml-dsa/actions/workflows/ci.yml)
+
 ## Installation
 
 ```terminal
