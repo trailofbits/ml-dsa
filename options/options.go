@@ -4,7 +4,7 @@ package options
 import "crypto"
 
 type Options struct {
-	// Hash must be currently be zero, for pure ML-DSA.
+	// Hash must currently be zero, for pure ML-DSA.
 	Hash crypto.Hash
 
 	// Optional application-specific context string. At most 255 bytes.
