@@ -13,9 +13,22 @@ go get https://github.com/trailfobits/go-ml-dsa
 ## Usage
 
 ```go
-pk, sk, err := mldsa44.GenerateKeyPair(rng)
-signature, err := sk.Sign(msg, ctx, rng)
-if pk.Verify(msg, ctx, pk) {
-    // valid
+import(
+	"log"
+    mldsa44 "trailofbits.com/ml-dsa/mldsa44"
+)
+
+pub, priv, err := mldsa44.GenerateKeyPair(nil)
+if err != nil {
+    log.Fatal(err)
 }
+
+msg := []byte("Hello, world!")
+
+sig, err := priv.Sign(nil, msg, nil)
+if err != nil {
+    log.Fatal(err)
+}
+
+ok := pub.Verify(msg, sig)
 ```
