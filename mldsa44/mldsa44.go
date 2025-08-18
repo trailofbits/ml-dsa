@@ -12,9 +12,9 @@ import (
 	"crypto"
 	"io"
 
-	internal "trailofbits.com/ml-dsa/internal"
-	"trailofbits.com/ml-dsa/internal/params"
-	options "trailofbits.com/ml-dsa/options"
+	internal "github.com/trailofbits/ml-dsa/internal"
+	"github.com/trailofbits/ml-dsa/internal/params"
+	options "github.com/trailofbits/ml-dsa/options"
 )
 
 // Package mldsa44 implements the ML-DSA-44 parameter set of the ML-DSA algorithm.

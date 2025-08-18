@@ -1,4 +1,4 @@
-module trailofbits.com/ml-dsa
+module github.com/trailofbits/ml-dsa
 
 go 1.24.0
 

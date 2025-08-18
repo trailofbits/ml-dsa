@@ -6,8 +6,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"trailofbits.com/ml-dsa/internal/params"
-	"trailofbits.com/ml-dsa/internal/util"
+	"github.com/trailofbits/ml-dsa/internal/params"
+	"github.com/trailofbits/ml-dsa/internal/util"
 )
 
 var ps = []*params.Cfg{params.MLDSA44Cfg, params.MLDSA65Cfg, params.MLDSA87Cfg}
