@@ -7,7 +7,7 @@ This repository implements [FIPS 204](https://nvlpubs.nist.gov/nistpubs/fips/nis
 ## Installation
 
 ```terminal
-go get https://github.com/trailfobits/go-ml-dsa
+go get https://github.com/trailofbits/go-ml-dsa
 ```
 
 ## Usage
