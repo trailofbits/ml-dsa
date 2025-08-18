@@ -8,10 +8,10 @@ import (
 	"io"
 	"slices"
 
-	"golang.org/x/crypto/sha3"
 	"github.com/trailofbits/ml-dsa/internal/params"
 	"github.com/trailofbits/ml-dsa/internal/ring"
 	"github.com/trailofbits/ml-dsa/internal/util"
+	"golang.org/x/crypto/sha3"
 )
 
 type VerifyingKey struct {

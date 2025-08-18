@@ -18,10 +18,10 @@ import (
 	"crypto/subtle"
 	"errors"
 
-	"golang.org/x/crypto/sha3"
 	"github.com/trailofbits/ml-dsa/internal/field"
 	"github.com/trailofbits/ml-dsa/internal/params"
 	"github.com/trailofbits/ml-dsa/internal/ring"
+	"golang.org/x/crypto/sha3"
 )
 
 // Algorithm 24
