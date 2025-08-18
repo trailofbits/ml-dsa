@@ -29,7 +29,6 @@ func TestFromSymmetricRoundTrip(t *testing.T) {
 
 func TestAddSubNegProperties(t *testing.T) {
 	// build two random-ish inputs with small magnitudes
-	rand.Seed(1)
 	var z1, z2 ring.Rz
 	for i := range z1 {
 		z1[i] = int32(rand.Intn(11) - 5)
