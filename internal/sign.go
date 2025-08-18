@@ -116,9 +116,12 @@ func (sk *SigningKey) Sign(rng io.Reader, message []byte, opts crypto.SignerOpts
 	if rng == nil {
 		rng = rand.Reader
 	}
-	_, err := rng.Read(rnd)
+	n, err := rng.Read(rnd)
 	if err != nil {
 		return nil, err
+	}
+	if n != len(rnd) {
+		return nil, errors.New("rng.Read() returned too few bytes")
 	}
 
 	Mprime := make([]byte, 0, len(ctx)+len(message)+2)
