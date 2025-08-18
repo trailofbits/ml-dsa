@@ -5,9 +5,9 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"trailofbits.com/ml-dsa/internal/field"
-	"trailofbits.com/ml-dsa/internal/params"
-	"trailofbits.com/ml-dsa/internal/ring"
+	"github.com/trailofbits/ml-dsa/internal/field"
+	"github.com/trailofbits/ml-dsa/internal/params"
+	"github.com/trailofbits/ml-dsa/internal/ring"
 )
 
 // helper to build a deterministic symmetric vector covering negatives/positives

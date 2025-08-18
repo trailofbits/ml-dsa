@@ -9,9 +9,9 @@ import (
 	"slices"
 
 	"golang.org/x/crypto/sha3"
-	"trailofbits.com/ml-dsa/internal/params"
-	"trailofbits.com/ml-dsa/internal/ring"
-	"trailofbits.com/ml-dsa/internal/util"
+	"github.com/trailofbits/ml-dsa/internal/params"
+	"github.com/trailofbits/ml-dsa/internal/ring"
+	"github.com/trailofbits/ml-dsa/internal/util"
 )
 
 type VerifyingKey struct {
