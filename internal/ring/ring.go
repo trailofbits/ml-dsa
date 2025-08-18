@@ -87,7 +87,6 @@ func (a Rq) HighBits(gamma2 uint32) (r1 Rz) {
 	return r1
 }
 
-// TODO - move vec stuff to a separate package
 func HighBitsVec(a []Rq, gamma2 uint32) (r1 []Rz) {
 	r1 = make([]Rz, len(a))
 	for i := range a {

@@ -157,7 +157,6 @@ func RejBoundedPoly(eta int, seed []byte) (a ring.Rq) {
 	return a
 }
 
-// TODO - make cfg usage more consistent
 // Algorithm 32
 func ExpandA(cfg *params.Cfg, rho []byte) [][]ring.Tq {
 	k, l := cfg.K, cfg.L

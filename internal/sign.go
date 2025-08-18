@@ -171,7 +171,6 @@ func (vk *VerifyingKey) VerifyInternal(Mprime, sigma []byte) bool {
 
 	w1 := util.UseHint(cfg, h, w_approx)
 	w1_encoded := util.W1Encode(cfg, w1)
-	// TODO - change this API back, IDK why I did this
 	c_tilde_prime := make([]byte, cfg.Lambda>>2)
 	util.H(c_tilde_prime, append(mu, w1_encoded...))
 

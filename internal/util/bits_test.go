@@ -125,6 +125,3 @@ func hintPackingForK(t *testing.T, k, omega uint8) {
 		}
 	}
 }
-
-// TODO - KAT testing for BitPack / BitUnpack
-// TODO - testing for MakeHint / UseHint
