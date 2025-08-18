@@ -85,7 +85,6 @@ func InvNttVec(w []ring.Tq) []ring.Rq {
 	return r
 }
 
-// TODO - make these generic. Maybe just instantiate using Map
 func AddVector(v, w []ring.Rq) []ring.Rq {
 	u := make([]ring.Rq, len(v))
 	for i := range len(v) {

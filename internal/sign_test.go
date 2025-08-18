@@ -7,6 +7,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"trailofbits.com/ml-dsa/internal/params"
+	"trailofbits.com/ml-dsa/internal/util"
 )
 
 var ps = []*params.Cfg{params.MLDSA44Cfg, params.MLDSA65Cfg, params.MLDSA87Cfg}
@@ -63,4 +64,46 @@ func TestSignVerifyKAT(t *testing.T) {
 	assert.True(t, pk.VerifyInternal(message, sig))
 	sig[0] ^= 0xff
 	assert.False(t, pk.VerifyInternal(message, sig))
+}
+
+func TestVerifyRejectsWrongSignatureLength(t *testing.T) {
+	message, _ := hex.DecodeString("48656c6c6f20776f726c64")
+	for _, p := range ps {
+		t.Run(p.Name, func(t *testing.T) {
+			sk, pk, _ := GenerateKeyPair(p, rand.Reader)
+			sig, err := sk.Sign(rand.Reader, message, nil)
+			assert.NoError(t, err)
+
+			// Shorter by 1
+			if len(sig) > 0 {
+				shortSig := make([]byte, len(sig)-1)
+				copy(shortSig, sig[:len(sig)-1])
+				assert.False(t, pk.Verify(message, shortSig, nil))
+			}
+
+			// Longer by 1
+			longSig := append(append([]byte{}, sig...), 0x00)
+			assert.False(t, pk.Verify(message, longSig, nil))
+
+			// Empty
+			assert.False(t, pk.Verify(message, nil, nil))
+		})
+	}
+}
+
+func TestSigDecodeRejectsWrongLength(t *testing.T) {
+	for _, p := range ps {
+		t.Run(p.Name, func(t *testing.T) {
+			// Too short
+			if p.SigSize > 0 {
+				short := make([]byte, int(p.SigSize)-1)
+				_, _, _, err := util.SigDecode(p, short)
+				assert.Error(t, err)
+			}
+			// Too long
+			long := make([]byte, int(p.SigSize)+1)
+			_, _, _, err := util.SigDecode(p, long)
+			assert.Error(t, err)
+		})
+	}
 }

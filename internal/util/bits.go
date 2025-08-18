@@ -3,7 +3,6 @@ package util
 import (
 	"crypto/subtle"
 	"errors"
-	"fmt"
 
 	"trailofbits.com/ml-dsa/internal/params"
 	"trailofbits.com/ml-dsa/internal/ring"
@@ -83,13 +82,7 @@ func BitPack(w ring.Rz, k uint8) []byte {
 // bitUnpack takes a byte slice and unpacks it into a slice of k-bit unsigned integers.
 // The byte slice is assumed to be in lsb order.
 func bitUnpack(z []byte, k uint8) []int32 {
-	numInts := (len(z) * 8) / int(k)
 	// Every use case packs or unpacks full ring elements
-	// TODO - remove after testing
-	if numInts != params.N {
-		panic(fmt.Sprintf("bitUnpack: invalid number of integers: %d", numInts))
-	}
-
 	w := make([]int32, params.N)
 
 	// l is the number of bits available to be read from the current byte
@@ -202,62 +195,3 @@ func HintBitUnpack(k, omega uint8, y []byte) ([]ring.R2, error) {
 	}
 	return h, nil
 }
-
-/*
-// Algorithm 10
-// Input:
-//
-//	y -- []byte with each value set to 1, of length a
-//	a -- positive integer
-//
-// Output: non-negative integer
-func BitsToInteger(y []byte, a int) uint32 {
-	x := uint32(0)
-	for i := range a {
-		x = (x << 1) | uint32(y[a-i-1])
-	}
-	return x
-}
-
-// Variants of Algorithm 11
-func IntegerToBytes(x uint32, a int) []byte {
-	xp := x
-	y := make([]byte, a)
-	for i := range a {
-		y[i] = byte(xp & 0xff)
-		xp >>= 8
-	}
-	return y
-}
-
-// Algorithm 12
-// Here, y is a []byte with each value set to 0 or 1.
-// This is because we can't get more memory-efficient than an array of bytes.
-func BitsToBytes(y []byte) []byte {
-	var a = len(y)
-	// Add 7 then right shift by 3 to get a size that's always rounded up to a whole byte
-	var z []byte = make([]byte, (a+7)>>3)
-	for i := range a {
-		i_8 := i >> 3
-		z[i_8] |= y[i] << (i & 7)
-	}
-	return z
-}
-
-// Algorithm 13
-// Input: array of bytes
-// Output: array of bits (but also a []byte type)
-func BytesToBits(z []byte) []byte {
-	zprime := slices.Clone(z)
-	len := len(z)
-	y := make([]byte, len<<3)
-	for i := range len {
-		for j := range 8 {
-			index := (i << 3) + j
-			y[index] = byte(zprime[i] & 1)
-			zprime[i] >>= 1
-		}
-	}
-	return y
-}
-*/

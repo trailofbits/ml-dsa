@@ -21,6 +21,7 @@ type Cfg struct {
 	W1Bits    uint8  // Bit length of entries in W1 = bitlen((q-1)/(2*Gamma2) - 1)
 	SkSize    uint16 // Byte size of expanded secret key - only used for known answer testing
 	PkSize    uint16 // Byte size of encoded public key
+	SigSize   uint16 // Byte size of encoded signature
 }
 
 var MLDSA44Cfg = &Cfg{
@@ -37,6 +38,7 @@ var MLDSA44Cfg = &Cfg{
 	W1Bits:    6, // bitlen(43)
 	SkSize:    2560,
 	PkSize:    1312,
+	SigSize:   2420,
 }
 
 var MLDSA65Cfg = &Cfg{
@@ -53,6 +55,7 @@ var MLDSA65Cfg = &Cfg{
 	W1Bits:    4, // bitlen(15)
 	SkSize:    4032,
 	PkSize:    1952,
+	SigSize:   3309,
 }
 
 var MLDSA87Cfg = &Cfg{
@@ -69,4 +72,5 @@ var MLDSA87Cfg = &Cfg{
 	W1Bits:    4, // bitlen(15)
 	SkSize:    4896,
 	PkSize:    2592,
+	SigSize:   4627,
 }

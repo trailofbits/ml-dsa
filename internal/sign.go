@@ -116,9 +116,12 @@ func (sk *SigningKey) Sign(rng io.Reader, message []byte, opts crypto.SignerOpts
 	if rng == nil {
 		rng = rand.Reader
 	}
-	_, err := rng.Read(rnd)
+	n, err := rng.Read(rnd)
 	if err != nil {
 		return nil, err
+	}
+	if n != len(rnd) {
+		return nil, errors.New("rng.Read() returned too few bytes")
 	}
 
 	Mprime := make([]byte, 0, len(ctx)+len(message)+2)
@@ -168,7 +171,6 @@ func (vk *VerifyingKey) VerifyInternal(Mprime, sigma []byte) bool {
 
 	w1 := util.UseHint(cfg, h, w_approx)
 	w1_encoded := util.W1Encode(cfg, w1)
-	// TODO - change this API back, IDK why I did this
 	c_tilde_prime := make([]byte, cfg.Lambda>>2)
 	util.H(c_tilde_prime, append(mu, w1_encoded...))
 

@@ -25,20 +25,12 @@ const (
 )
 
 // NewFromReduced creates a new field element from a reduced non-negative value.
-// Panic if the value is not reduced (0 <= reduced < q).
 func NewFromReduced(reduced uint32) T {
-	if reduced >= q {
-		panic("NewFromReduced: value out of range")
-	}
 	return T{reduced: reduced}
 }
 
 // NewFromSymmetric creates a new field element from a reduced signed value.
 func NewFromSymmetric(x int32) T {
-	// TODO: remove this panic once we are sure that all inputs are reduced, to avoid timing leaks
-	if x < -int32(q/2) || x > int32(q/2) {
-		panic("NewFromSymmetric: value out of range")
-	}
 	y := uint32(x) + (uint32(x)>>31)*q
 	return NewFromReduced(y)
 }
@@ -47,9 +39,7 @@ func NewFromSymmetric(x int32) T {
 func reduceOnce(a uint32) T {
 	x := uint32(a - q)
 	x += (x >> 31) * q
-	// TODO: remove this panic once we are sure that all inputs are reduced
 	return NewFromReduced(x)
-	//return Element(x)
 }
 
 // Add two field elements, mod q.
@@ -69,9 +59,30 @@ func (a T) Neg() T {
 
 // Multiply two field elements, mod q.
 func (a T) Mul(b T) T {
-	// TODO - Use an efficient constant-time implementation
-	product := uint64(a.reduced) * uint64(b.reduced)
-	return T{uint32(product % q)}
+	// Constant-time Barrett reduction for 64-bit product modulo q
+	// q fits in 32 bits. Let mu = floor(2^64 / q).
+	// For x < q^2, r = x - floor((x * mu) / 2^64) * q gives r < 2q.
+	// Apply two branchless correction steps to ensure r < q.
+	const q64 = uint64(q)
+	const mu uint64 = 2201172575745 // floor(2^64 / 8380417)
+
+	x := uint64(a.reduced) * uint64(b.reduced)
+	hi, _ := bits.Mul64(x, mu)
+	r := x - hi*q64
+
+	// First correction: if r >= q then r -= q (branchless)
+	r1, borrow := bits.Sub64(r, q64, 0)
+	correction := borrow ^ 1 // 1 if r >= q, 0 otherwise
+	mask := uint64(0) - uint64(correction)
+	r ^= mask & (r ^ r1)
+
+	// Second correction (safe even if not needed)
+	r2, borrow2 := bits.Sub64(r, q64, 0)
+	correction2 := borrow2 ^ 1
+	mask2 := uint64(0) - uint64(correction2)
+	r ^= mask2 & (r ^ r2)
+
+	return T{uint32(r)}
 }
 
 // Power2Round (Algorithm 35) decomposes a field element x into two components:

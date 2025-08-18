@@ -16,36 +16,13 @@ package util
 
 import (
 	"crypto/subtle"
+	"errors"
 
 	"golang.org/x/crypto/sha3"
 	"trailofbits.com/ml-dsa/internal/field"
 	"trailofbits.com/ml-dsa/internal/params"
 	"trailofbits.com/ml-dsa/internal/ring"
 )
-
-// Algorithm 22, parametrized by `k` from each ML-DSA parameter set
-func PKEncode(k uint8, rho []byte, t1 []ring.Rz) []byte {
-	var pk []byte
-	pk = append(pk, rho...)
-	for i := range k {
-		packed := SimpleBitPack(t1[i], params.D)
-		pk = append(pk, packed...)
-	}
-	return pk
-}
-
-// Algorithm 23, parametrized by `k` from each ML-DSA parameter set
-func PKDecode(k uint8, pk []byte) ([]byte, []ring.Rz) {
-	rho := pk[0:32]
-	z := pk[32:]
-	t1 := make([]ring.Rz, k)
-	j := 0
-	for i := range k {
-		t1[i] = SimpleBitUnpack(z[j:], params.D-1)
-		j += 40
-	}
-	return rho, t1
-}
 
 // Algorithm 24
 func SKEncode(k, l, log_eta uint8, rho, K, tr []byte, s1, s2, t0 []ring.Rz) []byte {
@@ -82,6 +59,9 @@ func SigEncode(cfg *params.Cfg, c []byte, z []ring.Rq, h []ring.R2) []byte {
 
 // Algorithm 27
 func SigDecode(cfg *params.Cfg, sig []byte) ([]byte, []ring.Rz, []ring.R2, error) {
+	if len(sig) != int(cfg.SigSize) {
+		return nil, nil, nil, errors.New("invalid signature size")
+	}
 	z := make([]ring.Rz, cfg.L)
 
 	length := cfg.Lambda / 4
@@ -177,7 +157,6 @@ func RejBoundedPoly(eta int, seed []byte) (a ring.Rq) {
 	return a
 }
 
-// TODO - make cfg usage more consistent
 // Algorithm 32
 func ExpandA(cfg *params.Cfg, rho []byte) [][]ring.Tq {
 	k, l := cfg.K, cfg.L
