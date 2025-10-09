@@ -26,6 +26,7 @@ jobs:
     - name: Build Valgrind test program
       run: |
         cd test_valgrind
+        go mod download github.com/trailofbits/ml-dsa
         go build -tags valgrind -o test_program .
 
     - name: Run Valgrind test
