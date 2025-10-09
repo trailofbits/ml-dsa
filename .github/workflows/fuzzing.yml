@@ -1,0 +1,28 @@
+# This workflow will run fuzz tests
+# For more information see: https://go.dev/doc/fuzz/
+
+name: Fuzzing
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  fuzz:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.24'
+      - name: Fuzz MLDSA-44
+        run: go test -fuzz=FuzzSignAndVerify -fuzztime=1m ./mldsa44
+
+      - name: Fuzz MLDSA-65
+        run: go test -fuzz=FuzzSignAndVerify -fuzztime=1m ./mldsa44
+
+      - name: Fuzz MLDSA-87
+        run: go test -fuzz=FuzzSignAndVerify -fuzztime=1m ./mldsa44

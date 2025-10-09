@@ -1,0 +1,22 @@
+# This workflow will run mutation tests
+# For more information see: https://gremlins.dev/
+
+name: Mutation Testing
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  gremlins:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v4
+        with:
+          go-version: '1.24'
+      - uses: go-gremlins/gremlins-action@v1
+        with:
+          version: latest
