@@ -1,0 +1,86 @@
+# Constant-Time Verification Workflow
+#
+# This workflow analyzes Go code for instructions that could leak timing information.
+# It cross-compiles for multiple architectures and checks for dangerous instructions
+# like variable-time division, which could enable timing side-channel attacks.
+
+name: Constant-Time Verification
+permissions:
+  contents: read
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  ct-check:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # x86-64 (Intel/AMD 64-bit)
+          - goos: linux
+            goarch: amd64
+            name: Linux AMD64
+
+          # x86 (Intel/AMD 32-bit)
+          - goos: linux
+            goarch: "386"
+            name: Linux i386
+
+          # ARM64 (Apple Silicon, ARM servers)
+          - goos: linux
+            goarch: arm64
+            name: Linux ARM64
+
+          # ARM 32-bit
+          - goos: linux
+            goarch: arm
+            name: Linux ARM
+
+          # PowerPC 64-bit Little Endian
+          - goos: linux
+            goarch: ppc64le
+            name: Linux PPC64LE
+
+          # RISC-V 64-bit
+          - goos: linux
+            goarch: riscv64
+            name: Linux RISC-V64
+
+          # IBM z/Architecture
+          - goos: linux
+            goarch: s390x
+            name: Linux s390x
+
+    runs-on: ubuntu-latest
+    name: CT Check (${{ matrix.name }})
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+
+      - name: Run constant-time verification
+        run: |
+          go run ./test_ct \
+            -arch=${{ matrix.goarch }} \
+            -os=${{ matrix.goos }} \
+            -func='field\.|DivBarrett|DivConstTime|Decompose|Power2Round|Symmetric|HighBits|LowBits|MakeHint|UseHint|BitPack|BitUnpack'
+
+      - name: Run constant-time verification (with warnings)
+        if: always()
+        continue-on-error: true
+        run: |
+          echo "=== Analysis with warnings ==="
+          go run ./test_ct \
+            -arch=${{ matrix.goarch }} \
+            -os=${{ matrix.goos }} \
+            -func='field\.|DivBarrett|DivConstTime|Decompose|Power2Round|Symmetric|HighBits|LowBits' \
+            -warnings || true
