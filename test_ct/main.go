@@ -182,8 +182,8 @@ func main() {
 
 	// Cleanup on exit unless -keep-binary
 	if !*keepBinary {
-		defer buildResult.Cleanup()
-		defer build.CleanupSyntheticMain(modPath)
+		defer func() { _ = buildResult.Cleanup() }()
+		defer func() { _ = build.CleanupSyntheticMain(modPath) }()
 	} else if *verbose {
 		fmt.Fprintf(os.Stderr, "Binary saved to: %s\n", buildResult.BinaryPath)
 	}

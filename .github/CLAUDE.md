@@ -456,9 +456,36 @@ Must be replaced with Barrett reduction and branchless conditionals as shown in 
 
 ---
 
+## Code Quality Requirements
+
+### Linting
+
+**All code MUST pass `golangci-lint` before being merged.** The linter runs automatically in CI on every push and pull request.
+
+To run the linter locally:
+```bash
+golangci-lint run ./...
+```
+
+Common issues to avoid:
+- **errcheck**: Always handle or explicitly ignore error returns (use `_ = funcThatReturnsError()` if intentionally ignoring)
+- **unused**: Remove unused variables, functions, and imports
+- **ineffassign**: Don't assign to variables that are never used afterward
+- **staticcheck**: Follow Go best practices flagged by staticcheck
+
+The linter configuration is in `.golangci.yml`. Do not disable linter rules without discussion.
+
+---
+
 ## Code Review Checklist
 
 Before approving any changes, verify:
+
+### Code Quality
+
+- [ ] `golangci-lint run ./...` passes with no errors
+- [ ] No new linter warnings introduced
+- [ ] Error returns are handled or explicitly ignored
 
 ### Timing Side-Channels
 - [ ] No `/` or `%` operators on secret-dependent values

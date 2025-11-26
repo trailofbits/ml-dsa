@@ -191,7 +191,7 @@ func findBestTestPackage(modulePath string) string {
 
 	// Fallback: look for any package with test files
 	var testPkg string
-	filepath.Walk(modulePath, func(path string, info os.FileInfo, err error) error {
+	_ = filepath.Walk(modulePath, func(path string, info os.FileInfo, err error) error {
 		if err != nil || testPkg != "" {
 			return err
 		}
