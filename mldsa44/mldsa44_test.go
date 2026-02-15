@@ -7,6 +7,7 @@ package mldsa44_test
 import (
 	"fmt"
 	"log"
+	"testing"
 
 	mldsa44 "github.com/trailofbits/ml-dsa/mldsa44"
 	options "github.com/trailofbits/ml-dsa/options"
@@ -46,4 +47,24 @@ func ExamplePublicKey_VerifyWithOptions() {
 	ok := pub.VerifyWithOptions(msg, sig, &options.Options{Context: "test"})
 	fmt.Println(ok)
 	// Output: true
+}
+
+func FuzzSignAndVerify(f *testing.F) {
+	f.Fuzz(func(t *testing.T, msg []byte) {
+		pub, priv, err := mldsa44.GenerateKeyPair(nil)
+		if err != nil {
+			t.Skip()
+		}
+
+		sig, err := priv.Sign(nil, msg, nil)
+		if err != nil {
+			// We expect a failure here, since the message may be too
+			// large to be signed, so we just return
+			return
+		}
+
+		if !pub.Verify(msg, sig) {
+			t.Errorf("Signature failed to verify")
+		}
+	})
 }
